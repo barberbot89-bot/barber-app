@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Barbershop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --paper:#F4F6F8; --card:#fff; --ink:#14223A; --muted:#667489; --line:#DDE3EA;
+  --red:#C62F2F; --blue:#1F4E9C; --ok:#2E7D4F;
+  --red-bg:#FBE9E9; --blue-bg:#E7EEF9; --ok-bg:#E6F3EB; --grey-bg:#ECEFF3;
+  --pole:repeating-linear-gradient(-45deg,#C62F2F 0 10px,#fff 10px 20px,#1F4E9C 20px 30px,#fff 30px 40px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:Barlow,system-ui,sans-serif;font-size:16px;line-height:1.35}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;text-align:left}
+input{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+#app{max-width:520px;margin:0 auto;padding:0 16px calc(160px + env(safe-area-inset-bottom))}
+
+.bar{position:sticky;top:0;height:6px;background:var(--line);margin:0 -16px;z-index:5}
+.bar i{display:block;height:100%;background:var(--pole);transition:width .35s ease}
+
+h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:36px;line-height:1.05;margin:22px 0 6px;letter-spacing:.2px}
+h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;margin:28px 0 10px}
+.sub{color:var(--muted);margin:0 0 16px}
+.muted{color:var(--muted)}
+.back{color:var(--blue);font-weight:600;margin-top:16px;display:inline-block;padding:4px 0}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.svc{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:10px}
+.svc:active{background:var(--blue-bg)}
+.svc b{display:block;font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:600;line-height:1.1}
+.svc small{color:var(--muted);font-size:14px}
+.svc em{font-style:normal;font-weight:600;white-space:nowrap}
+
+.strip{display:flex;gap:8px;overflow-x:auto;margin:8px -16px 18px;padding:2px 16px 6px;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;width:58px;padding:8px 0;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.chip small{display:block;color:var(--muted);font-size:12px}
+.chip b{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:600;line-height:1.1}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip.on small{color:#B9C4D6}
+
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.slot{padding:12px 0;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:10px;font-weight:600}
+.slot.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+.empty{padding:24px 8px;text-align:center;color:var(--muted)}
+.empty .primary{margin-top:14px;max-width:240px;margin-left:auto;margin-right:auto}
+
+.act{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom));padding:24px 16px 10px;background:linear-gradient(rgba(244,246,248,0),var(--paper) 40%);z-index:6;pointer-events:none}
+.act>div{max-width:520px;margin:0 auto;display:flex;gap:8px;pointer-events:auto}
+.primary{flex:1;height:52px;border-radius:12px;background:var(--ink);color:#fff;font-weight:600;font-size:17px;text-align:center}
+.primary:disabled{opacity:.35}
+.ghost{height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:600;text-align:center}
+.danger{color:var(--red)}
+.small-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:15px;text-align:center}
+.small-btn.ok{background:var(--ok-bg);border-color:#BFE0CB;color:var(--ok)}
+.small-btn.no{background:var(--red-bg);border-color:#F0C4C4;color:var(--red)}
+
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);z-index:7;padding-bottom:env(safe-area-inset-bottom)}
+.nav>div{max-width:520px;margin:0 auto;display:flex}
+.nav button{flex:1;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--muted);font-size:12px;font-weight:500;text-align:center}
+.nav button.on{color:var(--blue);font-weight:600}
+.nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;background:var(--grey-bg);color:var(--muted);white-space:nowrap}
+.tag.booked{background:var(--blue-bg);color:var(--blue)}
+.tag.done{background:var(--ok-bg);color:var(--ok)}
+.tag.no_show{background:var(--red-bg);color:var(--red)}
+
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.time{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:700;line-height:1}
+.line{margin-top:6px}
+.line a{color:var(--blue);text-decoration:none;font-weight:600}
+.btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+.seg{display:flex;background:var(--grey-bg);border-radius:12px;padding:3px;margin:16px 0}
+.seg button{flex:1;text-align:center;padding:9px 0;border-radius:10px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(20,34,58,.12)}
+.big{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:700;line-height:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.grid2 .card{margin:0}
+.grid2 b{font-family:'Barlow Condensed',sans-serif;font-size:32px;line-height:1;display:block}
+.list-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.list-row:first-child{border-top:0}
+
+.hours{display:grid;grid-template-columns:96px 1fr;gap:6px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.hours:first-child{border-top:0}
+.hours .t{display:flex;gap:8px;align-items:center}
+.hours input[type=time]{flex:1;min-width:0;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 8px;background:#fff}
+.hours input[type=time]:disabled{opacity:.35}
+.hours label{grid-column:2;color:var(--muted);font-size:14px;display:flex;gap:8px;align-items:center}
+.hours input[type=checkbox]{width:20px;height:20px;accent-color:var(--ink)}
+
+.linkbox{word-break:break-all;background:var(--grey-bg);border-radius:10px;padding:10px 12px;font-size:14px;margin:10px 0}
+
+.sheet{position:fixed;inset:0;background:rgba(20,34,58,.45);z-index:20;display:flex;align-items:flex-end}
+.sheet>div{width:100%;max-width:520px;margin:0 auto;background:var(--paper);border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.sheet label{display:block;font-weight:600;margin:12px 0 4px}
+.sheet input{width:100%;height:46px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:#fff}
+
+.toast{position:fixed;top:calc(env(safe-area-inset-top) + 14px);left:16px;right:16px;max-width:488px;margin:0 auto;background:var(--ink);color:#fff;padding:12px 14px;border-radius:12px;z-index:30;font-weight:500}
+.toast.err{background:var(--red)}
+
+.done-mark{width:72px;height:72px;border-radius:50%;background:var(--ok-bg);color:var(--ok);display:grid;place-items:center;margin:40px 0 8px}
+.done-mark svg{width:36px;height:36px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.center{padding-top:30vh;text-align:center}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
+// ================================================================================
+
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+const TZ = "Asia/Tashkent";
+const MONTHS = ["yanvar","fevral","mart","aprel","may","iyun","iyul","avgust","sentabr","oktabr","noyabr","dekabr"];
+const WD = ["Yak","Dush","Sesh","Chor","Pay","Jum","Shan"];
+const DAYS = ["Dushanba","Seshanba","Chorshanba","Payshanba","Juma","Shanba","Yakshanba"];
+const STATUS = {booked:"Kutilmoqda", done:"Bajarildi", no_show:"Kelmadi", cancelled:"Bekor qilingan"};
+
+const $app = document.getElementById("app");
+
+// ---------- helpers
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ymdOf = d => new Intl.DateTimeFormat("en-CA", {timeZone: TZ}).format(d);
+const ymd = off => ymdOf(new Date(Date.now() + off * 864e5));
+const parts = s => { const [y, m, d] = s.split("-").map(Number); return {y, m, d, wd: new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay()}; };
+const longDate = s => { const p = parts(s); return p.d + " " + MONTHS[p.m - 1] + ", " + WD[p.wd]; };
+const fmtTime = iso => new Date(iso).toLocaleTimeString("en-GB", {timeZone: TZ, hour: "2-digit", minute: "2-digit"});
+const dateOfIso = iso => ymdOf(new Date(iso));
+const money = n => Number(n).toLocaleString("ru-RU") + " so'm";
+const loading = () => '<div class="empty">Yuklanmoqda…</div>';
+
+function toast(msg, err) {
+  const t = document.createElement("div");
+  t.className = "toast" + (err ? " err" : "");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+function haptic(kind) { try { tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
+function ask(msg) {
+  return new Promise(res => {
+    if (tg && tg.initData && tg.showConfirm) tg.showConfirm(msg, ok => res(!!ok));
+    else res(confirm(msg));
+  });
+}
+
+async function api(path, opts) {
+  opts = opts || {};
+  const res = await fetch(API_BASE + path, {
+    method: opts.method || "GET",
+    headers: {"Content-Type": "application/json", "X-Init-Data": (tg && tg.initData) || ""},
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    let msg = data && data.detail;
+    if (!msg || typeof msg !== "string") msg = "Xatolik yuz berdi";
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// ---------- state
+const S = {
+  me: null, tab: "book", step: 1, services: null, service: null,
+  date: ymd(0), slots: null, slot: null, slotReq: 0, done: null, mine: null,
+  sched: {date: ymd(0), list: null},
+  report: {period: "day", data: null},
+  set: {services: null, hours: null, admins: null, invite: null},
+  modal: null,
+};
+const isStaff = () => S.me && (S.me.role === "owner" || S.me.role === "admin");
+const isOwner = () => S.me && S.me.role === "owner";
+
+// ---------- icons
+const ICON = {
+  book: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
+  mine: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  sched: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  report: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  settings: '<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+};
+const icon = k => '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + "</svg>";
+
+// ---------- components
+function dateStrip(selected, from, to, action) {
+  let h = '<div class="strip">';
+  for (let i = from; i <= to; i++) {
+    const d = ymd(i), p = parts(d);
+    h += '<button class="chip' + (d === selected ? " on" : "") + '" data-a="' + action + '" data-d="' + d + '">' +
+      "<small>" + (i === 0 ? "Bugun" : WD[p.wd]) + "</small><b>" + p.d + "</b></button>";
+  }
+  return h + "</div>";
+}
+
+// ---------- views: client
+function viewBook() {
+  if (S.done) return viewDone();
+  if (S.step === 1) {
+    return "<h1>Xizmatni tanlang</h1><p class='sub'>Qaysi xizmat kerak?</p>" +
+      (S.services ? (S.services.length ? S.services.map(s =>
+        '<button class="svc" data-a="pick-service" data-id="' + s.id + '"><span><b>' + esc(s.name) +
+        "</b><small>" + s.duration_min + " daqiqa</small></span><em>" + money(s.price) + "</em></button>").join("")
+        : '<div class="empty">Hozircha xizmatlar kiritilmagan.</div>') : loading());
+  }
+  if (S.step === 2) {
+    let slots;
+    if (S.slots === null) slots = loading();
+    else if (!S.slots.length) slots = '<div class="empty">Bu kunda bo\'sh vaqt yo\'q. Boshqa kunni tanlang.</div>';
+    else slots = '<div class="slots">' + S.slots.map(t =>
+      '<button class="slot' + (t === S.slot ? " on" : "") + '" data-a="pick-slot" data-t="' + esc(t) + '">' + t.slice(11, 16) + "</button>").join("") + "</div>";
+    return '<button class="back" data-a="back">‹ ' + esc(S.service.name) + "</button><h1>Kun va vaqt</h1>" +
+      dateStrip(S.date, 0, 13, "pick-date") + slots;
+  }
+  return '<button class="back" data-a="back">‹ Vaqtni o\'zgartirish</button><h1>Tasdiqlash</h1>' +
+    '<div class="card"><div class="list-row"><span class="muted">Xizmat</span><b>' + esc(S.service.name) + "</b></div>" +
+    '<div class="list-row"><span class="muted">Sana</span><b>' + longDate(S.slot.slice(0, 10)) + "</b></div>" +
+    '<div class="list-row"><span class="muted">Vaqt</span><b>' + S.slot.slice(11, 16) + "</b></div>" +
+    '<div class="list-row"><span class="muted">Davomiyligi</span><b>' + S.service.duration_min + " daqiqa</b></div>" +
+    '<div class="list-row"><span class="muted">Narxi</span><b>' + money(S.service.price) + "</b></div></div>";
+}
+
+function viewDone() {
+  return '<div class="done-mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>' +
+    "<h1>Yozilish tasdiqlandi</h1>" +
+    "<p class='sub'>" + esc(S.done.service) + ", " + longDate(S.done.date) + ", soat " + S.done.time + ". Vizitdan 2 soat oldin eslatma yuboramiz.</p>";
+}
+
+function viewMine() {
+  let h = "<h1>Yozilishlarim</h1><p class='sub'>Kelgusi vizitlar</p>";
+  if (S.mine === null) return h + loading();
+  if (!S.mine.length) return h + '<div class="empty">Hozircha yozilish yo\'q.<button class="primary" data-a="tab" data-t="book">Yozilish</button></div>';
+  return h + S.mine.map(b =>
+    '<div class="card"><div class="top"><div><div class="time">' + fmtTime(b.start_at) + "</div>" +
+    '<div class="line">' + longDate(dateOfIso(b.start_at)) + "</div></div><b>" + money(b.services.price) + "</b></div>" +
+    '<div class="line">' + esc(b.services.name) + "</div>" +
+    '<div class="btns"><button class="small-btn no" data-a="cancel-mine" data-id="' + b.id + '">Bekor qilish</button></div></div>').join("");
+}
+
+// ---------- views: staff
+function viewSched() {
+  const L = S.sched.list;
+  let h = "<h1>Jadval</h1>" + dateStrip(S.sched.date, -2, 11, "sched-date");
+  if (L === null) return h + loading();
+  if (!L.length) return h + '<div class="empty">Bu kunda yozilish yo\'q.</div>';
+  return h + L.map(b => {
+    const u = b.users || {};
+    return '<div class="card"><div class="top"><div class="time">' + fmtTime(b.start_at) + "–" + fmtTime(b.end_at) +
+      '</div><span class="tag ' + b.status + '">' + STATUS[b.status] + "</span></div>" +
+      '<div class="line"><b>' + esc(u.name || "Mijoz") + "</b>" +
+      (u.phone ? ' · <a href="tel:' + esc(u.phone) + '">' + esc(u.phone) + "</a>" : "") + "</div>" +
+      '<div class="line muted">' + esc(b.services.name) + " · " + money(b.services.price) + "</div>" +
+      (b.status === "booked" ? '<div class="btns">' +
+        '<button class="small-btn ok" data-a="set-status" data-id="' + b.id + '" data-s="done">Bajarildi</button>' +
+        '<button class="small-btn no" data-a="set-status" data-id="' + b.id + '" data-s="no_show">Kelmadi</button>' +
+        '<button class="small-btn" data-a="set-status" data-id="' + b.id + '" data-s="cancelled">Bekor qilish</button></div>' : "") +
+      "</div>";
+  }).join("");
+}
+
+function viewReport() {
+  const R = S.report, d = R.data;
+  let h = "<h1>Hisobot</h1>" +
+    '<div class="seg"><button class="' + (R.period === "day" ? "on" : "") + '" data-a="period" data-p="day">Bugun</button>' +
+    '<button class="' + (R.period === "month" ? "on" : "") + '" data-a="period" data-p="month">Shu oy</button></div>';
+  if (!d) return h + loading();
+  h += '<div class="card"><div class="muted">Tushum</div><div class="big">' + money(d.revenue) + "</div></div>" +
+    '<div class="grid2">' +
+    '<div class="card"><b>' + d.counts.done + '</b><span class="muted">Bajarildi</span></div>' +
+    '<div class="card"><b>' + d.counts.booked + '</b><span class="muted">Kutilmoqda</span></div>' +
+    '<div class="card"><b>' + d.counts.no_show + '</b><span class="muted">Kelmadi</span></div>' +
+    '<div class="card"><b>' + d.counts.cancelled + '</b><span class="muted">Bekor qilingan</span></div></div>';
+  h += "<h2>Ko'p so'ralgan xizmatlar</h2>";
+  h += d.by_service.length
+    ? '<div class="card">' + d.by_service.map(s => '<div class="list-row"><span>' + esc(s.name) + "</span><b>" + s.count + "</b></div>").join("") + "</div>"
+    : '<div class="empty">Hali bajarilgan vizit yo\'q.</div>';
+  return h;
+}
+
+function viewSettings() {
+  const T = S.set;
+  let h = "<h1>Sozlamalar</h1>";
+
+  h += "<h2>Xizmatlar</h2>";
+  if (T.services === null) h += loading();
+  else {
+    h += T.services.map(s =>
+      '<div class="card"><div class="top"><div><b>' + esc(s.name) + "</b>" + (s.active ? "" : ' <span class="tag">Yashirin</span>') +
+      '<div class="muted">' + s.duration_min + " daqiqa · " + money(s.price) + "</div></div></div>" +
+      '<div class="btns"><button class="small-btn" data-a="edit-service" data-id="' + s.id + '">O\'zgartirish</button>' +
+      '<button class="small-btn" data-a="toggle-service" data-id="' + s.id + '">' + (s.active ? "Yashirish" : "Ko'rsatish") + "</button></div></div>").join("");
+    h += '<button class="ghost" style="width:100%" data-a="add-service">+ Xizmat qo\'shish</button>';
+  }
+
+  h += "<h2>Ish vaqti</h2>";
+  if (T.hours === null) h += loading();
+  else {
+    h += '<div class="card">' + DAYS.map((name, i) => {
+      const r = T.hours.find(x => x.weekday === i) || {is_off: true};
+      const st = (r.start_time || "09:00").slice(0, 5), en = (r.end_time || "20:00").slice(0, 5);
+      return '<div class="hours"><b>' + name + '</b><div class="t">' +
+        '<input type="time" data-h="' + i + '" data-f="start" value="' + st + '"' + (r.is_off ? " disabled" : "") + ">" +
+        '<input type="time" data-h="' + i + '" data-f="end" value="' + en + '"' + (r.is_off ? " disabled" : "") + "></div>" +
+        '<label><input type="checkbox" data-h="' + i + '" data-f="off"' + (r.is_off ? " checked" : "") + "> Dam olish kuni</label></div>";
+    }).join("") + "</div>";
+  }
+
+  if (isOwner()) {
+    h += "<h2>Adminlar</h2>";
+    if (T.admins === null) h += loading();
+    else {
+      h += T.admins.length
+        ? '<div class="card">' + T.admins.map(a =>
+          '<div class="list-row"><span><b>' + esc(a.name || "Admin") + '</b><div class="muted">' + esc(a.phone || "") + "</div></span>" +
+          '<button class="small-btn no" data-a="remove-admin" data-id="' + a.telegram_id + '">O\'chirish</button></div>').join("") + "</div>"
+        : '<div class="empty">Hozircha qo\'shimcha admin yo\'q.</div>';
+      h += '<button class="ghost" style="width:100%" data-a="invite">+ Admin qo\'shish havolasi</button>';
+      if (T.invite) {
+        h += '<div class="card" style="margin-top:10px"><div>Havolani yangi adminga yuboring. U bir marta ishlaydi.</div>' +
+          '<div class="linkbox">' + esc(T.invite) + "</div>" +
+          '<div class="btns"><button class="small-btn" data-a="copy-invite">Nusxalash</button>' +
+          '<button class="small-btn" data-a="share-invite">Telegram orqali yuborish</button></div></div>';
+      }
+    }
+  }
+  return h;
+}
+
+function modalHtml() {
+  const m = S.modal;
+  if (!m) return "";
+  const s = m.data || {};
+  return '<div class="sheet"><div><h2 style="margin-top:0">' + (m.data ? "Xizmatni o'zgartirish" : "Yangi xizmat") + "</h2>" +
+    '<label for="f-name">Nomi</label><input id="f-name" value="' + esc(s.name || "") + '" placeholder="Soch olish">' +
+    '<label for="f-price">Narxi (so\'m)</label><input id="f-price" type="number" inputmode="numeric" value="' + esc(s.price || "") + '" placeholder="50000">' +
+    '<label for="f-dur">Davomiyligi (daqiqa)</label><input id="f-dur" type="number" inputmode="numeric" value="' + esc(s.duration_min || "") + '" placeholder="30">' +
+    '<div class="btns" style="margin-top:18px"><button class="primary" data-a="save-service">Saqlash</button>' +
+    '<button class="ghost" data-a="close-modal">Bekor qilish</button></div></div></div>';
+}
+
+// ---------- render
+function render() {
+  if (!S.me) return;
+  const staff = isStaff();
+  const tabs = staff
+    ? [["sched", "Jadval"], ["report", "Hisobot"], ["settings", "Sozlamalar"], ["book", "Yozilish"]]
+    : [["book", "Yozilish"], ["mine", "Yozilishlarim"]];
+  let pct = 100;
+  if (S.tab === "book") pct = S.done ? 100 : Math.round(S.step / 3 * 100);
+
+  let body = "";
+  if (S.tab === "book") body = viewBook();
+  else if (S.tab === "mine") body = viewMine();
+  else if (S.tab === "sched") body = viewSched();
+  else if (S.tab === "report") body = viewReport();
+  else if (S.tab === "settings") body = viewSettings();
+
+  let act = "";
+  if (S.tab === "book" && !S.done) {
+    if (S.step === 2) act = '<button class="primary" data-a="to-confirm"' + (S.slot ? "" : " disabled") + ">Davom etish</button>";
+    if (S.step === 3) act = '<button class="primary" data-a="confirm">Yozilishni tasdiqlash</button>';
+  } else if (S.tab === "book" && S.done) {
+    act = '<button class="ghost" data-a="again">Yana yozilish</button><button class="primary" data-a="tab" data-t="' + (staff ? "sched" : "mine") + '">' + (staff ? "Jadvalga qaytish" : "Yozilishlarim") + "</button>";
+  }
+
+  $app.innerHTML = '<div class="bar"><i style="width:' + pct + '%"></i></div>' + body +
+    (act ? '<div class="act"><div>' + act + "</div></div>" : "") +
+    '<nav class="nav"><div>' + tabs.map(t =>
+      '<button class="' + (S.tab === t[0] ? "on" : "") + '" data-a="tab" data-t="' + t[0] + '">' +
+      icon(t[0] === "book" ? "book" : t[0]) + "<span>" + t[1] + "</span></button>").join("") + "</div></nav>" +
+    modalHtml();
+
+  const on = document.querySelector(".chip.on");
+  if (on) on.scrollIntoView({inline: "center", block: "nearest"});
+}
+
+// ---------- loaders
+async function loadSlots() {
+  const req = ++S.slotReq;
+  S.slots = null; S.slot = null; render();
+  try {
+    const r = await api("/api/slots?date_=" + S.date + "&service_id=" + S.service.id);
+    if (req !== S.slotReq) return;
+    S.slots = r;
+  } catch (e) { if (req !== S.slotReq) return; S.slots = []; toast(e.message, true); }
+  render();
+}
+async function loadMine() {
+  S.mine = null; render();
+  try { S.mine = await api("/api/my-bookings"); } catch (e) { S.mine = []; toast(e.message, true); }
+  render();
+}
+async function loadSched() {
+  S.sched.list = null; render();
+  try { S.sched.list = await api("/api/admin/bookings?date_=" + S.sched.date); } catch (e) { S.sched.list = []; toast(e.message, true); }
+  render();
+}
+async function loadReport() {
+  S.report.data = null; render();
+  try { S.report.data = await api("/api/admin/report?period=" + S.report.period); } catch (e) { S.report.data = {revenue: 0, counts: {booked: 0, done: 0, no_show: 0, cancelled: 0}, by_service: []}; toast(e.message, true); }
+  render();
+}
+async function loadSettings() {
+  S.set.services = null; S.set.hours = null; if (isOwner()) S.set.admins = null; render();
+  try {
+    const [sv, hr] = await Promise.all([api("/api/admin/services"), api("/api/admin/work-hours")]);
+    S.set.services = sv; S.set.hours = hr;
+    if (isOwner()) S.set.admins = await api("/api/admin/admins");
+  } catch (e) { toast(e.message, true); S.set.services = S.set.services || []; S.set.hours = S.set.hours || []; if (isOwner() && !S.set.admins) S.set.admins = []; }
+  render();
+}
+
+function resetBook() {
+  S.step = 1; S.service = null; S.slots = null; S.slot = null; S.date = ymd(0); S.done = null;
+}
+function openTab(t) {
+  S.tab = t;
+  if (t === "book") { if (S.done) resetBook(); render(); }
+  else if (t === "mine") loadMine();
+  else if (t === "sched") loadSched();
+  else if (t === "report") loadReport();
+  else if (t === "settings") loadSettings();
+  window.scrollTo(0, 0);
+}
+
+// ---------- actions
+const H = {
+  tab: d => openTab(d.t),
+  "pick-service": d => {
+    S.service = S.services.find(s => s.id === Number(d.id));
+    S.step = 2; S.date = ymd(0); loadSlots();
+  },
+  "pick-date": d => { S.date = d.d; loadSlots(); },
+  "pick-slot": d => { S.slot = d.t; render(); },
+  back: () => { if (S.step === 3) { S.step = 2; render(); } else { S.step = 1; S.slot = null; render(); } },
+  "to-confirm": () => { if (S.slot) { S.step = 3; render(); window.scrollTo(0, 0); } },
+  confirm: async () => {
+    try {
+      await api("/api/bookings", {method: "POST", body: {service_id: S.service.id, start_at: S.slot}});
+      S.done = {service: S.service.name, date: S.slot.slice(0, 10), time: S.slot.slice(11, 16)};
+      S.mine = null; haptic("success"); render(); window.scrollTo(0, 0);
+    } catch (e) {
+      toast(e.message, true); haptic("error");
+      S.step = 2; loadSlots();
+    }
+  },
+  again: () => { resetBook(); render(); },
+  "cancel-mine": async d => {
+    if (!(await ask("Yozilishni bekor qilamizmi?"))) return;
+    try { await api("/api/bookings/" + d.id + "/cancel", {method: "POST"}); toast("Bekor qilindi"); loadMine(); }
+    catch (e) { toast(e.message, true); }
+  },
+  "sched-date": d => { S.sched.date = d.d; loadSched(); },
+  "set-status": async d => {
+    if (d.s === "cancelled" && !(await ask("Yozilishni bekor qilamizmi? Mijozga xabar boradi."))) return;
+    try { await api("/api/admin/bookings/" + d.id + "/status", {method: "POST", body: {status: d.s}}); haptic("success"); loadSched(); }
+    catch (e) { toast(e.message, true); }
+  },
+  period: d => { S.report.period = d.p; loadReport(); },
+  "add-service": () => { S.modal = {data: null}; render(); },
+  "edit-service": d => { S.modal = {data: S.set.services.find(s => s.id === Number(d.id))}; render(); },
+  "close-modal": () => { S.modal = null; render(); },
+  "save-service": async () => {
+    const name = document.getElementById("f-name").value.trim();
+    const price = parseInt(document.getElementById("f-price").value, 10);
+    const dur = parseInt(document.getElementById("f-dur").value, 10);
+    if (!name || !(price >= 0) || !(dur > 0)) { toast("Nom, narx va davomiylikni to'ldiring", true); return; }
+    const body = {name, price, duration_min: dur};
+    try {
+      if (S.modal.data) await api("/api/admin/services/" + S.modal.data.id, {method: "PATCH", body});
+      else await api("/api/admin/services", {method: "POST", body});
+      S.modal = null; toast("Saqlandi"); S.services = null; loadSettings();
+      api("/api/services").then(r => { S.services = r; }).catch(() => {});
+    } catch (e) { toast(e.message, true); }
+  },
+  "toggle-service": async d => {
+    const s = S.set.services.find(x => x.id === Number(d.id));
+    try {
+      await api("/api/admin/services/" + s.id, {method: "PATCH", body: {active: !s.active}});
+      s.active = !s.active; render();
+      api("/api/services").then(r => { S.services = r; }).catch(() => {});
+    } catch (e) { toast(e.message, true); }
+  },
+  invite: async () => {
+    try { const r = await api("/api/admin/invite", {method: "POST"}); S.set.invite = r.link; render(); }
+    catch (e) { toast(e.message, true); }
+  },
+  "copy-invite": async () => {
+    try { await navigator.clipboard.writeText(S.set.invite); toast("Nusxalandi"); }
+    catch (e) { toast("Havolani belgilab nusxalang", true); }
+  },
+  "share-invite": () => {
+    const url = "https://t.me/share/url?url=" + encodeURIComponent(S.set.invite) + "&text=" + encodeURIComponent("Admin bo'lish uchun havola");
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank");
+  },
+  "remove-admin": async d => {
+    if (!(await ask("Bu adminni o'chiramizmi?"))) return;
+    try { await api("/api/admin/admins/" + d.id, {method: "DELETE"}); S.set.admins = await api("/api/admin/admins"); toast("O'chirildi"); render(); }
+    catch (e) { toast(e.message, true); }
+  },
+  retry: () => boot(),
+};
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-a]");
+  if (!el || !H[el.dataset.a]) return;
+  H[el.dataset.a](el.dataset, el);
+});
+
+document.addEventListener("change", async e => {
+  const el = e.target;
+  if (el.dataset.h === undefined) return;
+  const i = Number(el.dataset.h);
+  const q = f => document.querySelector('[data-h="' + i + '"][data-f="' + f + '"]');
+  const off = q("off").checked, st = q("start").value, en = q("end").value;
+  if (!off && (!st || !en || st >= en)) { toast("Boshlanish vaqti tugashdan oldin bo'lishi kerak", true); return; }
+  try {
+    await api("/api/admin/work-hours/" + i, {method: "PUT", body: off ? {is_off: true} : {is_off: false, start_time: st, end_time: en}});
+    const row = S.set.hours.find(x => x.weekday === i);
+    if (row) { row.is_off = off; if (!off) { row.start_time = st; row.end_time = en; } }
+    toast("Saqlandi"); render();
+  } catch (err) { toast(err.message, true); }
+});
+
+// ---------- boot
+function screen(msg, retry) {
+  $app.innerHTML = '<div class="bar"><i style="width:100%"></i></div><div class="center"><h1>' + esc(msg.title) + "</h1><p class='sub'>" + esc(msg.text) + "</p>" +
+    (retry ? '<button class="ghost" data-a="retry">Qayta urinish</button>' : "") + "</div>";
+}
+
+async function boot() {
+  if (tg) {
+    tg.ready(); tg.expand();
+    try { tg.setHeaderColor("#F4F6F8"); tg.setBackgroundColor("#F4F6F8"); } catch (e) {}
+  }
+  if (API_BASE.indexOf("YOUR-SERVICE") !== -1) {
+    screen({title: "Sozlash kerak", text: "index.html ichidagi API_BASE ga Render manzilini yozing."}, false);
+    return;
+  }
+  screen({title: "Yuklanmoqda", text: "Bir lahza…"}, false);
+  const slow = setTimeout(() => screen({title: "Server uyg'onmoqda", text: "Birinchi ochilishda bir daqiqagacha kutish mumkin."}, false), 5000);
+  try {
+    S.me = await api("/api/me");
+    S.services = await api("/api/services");
+  } catch (e) {
+    clearTimeout(slow);
+    screen({title: "Ochilmadi", text: e.message}, true);
+    return;
+  }
+  clearTimeout(slow);
+  S.tab = isStaff() ? "sched" : "book";
+  if (S.tab === "sched") loadSched(); else render();
+}
+boot();
+</script>
+</body>
+</html>
