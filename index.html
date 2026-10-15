@@ -174,6 +174,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 .pend{background:#F59E0B;color:#fff;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;margin:40px auto 12px}.pend svg{width:42px;height:42px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 .tag.pending{background:#FFF1D6;color:#B26A00}.st.pending{color:#B26A00}
 .sheet select{width:100%;height:46px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card);color:inherit;font:inherit}
+.slot.off{opacity:.35;text-decoration:line-through}.slot.cov{background:var(--blue-bg);border-color:var(--blue)}
 </style>
 </head>
 <body>
@@ -181,7 +182,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -484,14 +485,22 @@ function viewCalendar() {
 
 function viewTime() {
   let h = subHd(S.barber.name) + '<button class="pill on" data-a="back" style="margin-bottom:6px">' + longDate(S.date) + " ✕</button><h2 style='margin-top:10px'>" + t("choose_time") + "</h2>";
-  const I = S.slotInfo;
+  const I = S.slotInfo, tm = x => +x.slice(0, 2) * 60 + +x.slice(3, 5), avail = {};
   if (S.slots === null) return h + loading();
+  S.slots.forEach(x => { avail[x.slice(11, 16)] = x; });
   if (!I || !I.open || !S.slots.length) return h + '<div class="empty">' + t("no_slots") + "</div>";
   for (let hr = +I.open.slice(0, 2); hr < +I.close.slice(0, 2); hr++) {
     const hh = String(hr).padStart(2, "0"), L = S.slots.filter(x => x.slice(11, 13) === hh), open = S.hourOpen === hh && L.length;
     h += '<button class="hrow' + (open ? " on" : "") + '"' + (L.length ? ' data-a="pick-hour" data-h="' + hh + '"' : " disabled") + "><span><b>" + hh + ":00</b> " +
       (L.length ? '<span class="muted">' + t("free_n", {n: L.length}) + "</span>" : '<span class="busy">' + t("busy") + "</span>") + "</span></button>";
-    if (open) h += '<div class="slots" style="margin-bottom:10px">' + L.map(x => '<button class="slot' + (x === S.slot ? " on" : "") + '" data-a="pick-slot" data-t="' + esc(x) + '">' + x.slice(11, 16) + "</button>").join("") + "</div>";
+    if (open) {
+      const stp = I.step || 15, dur = totals().min, sel = S.slot ? tm(S.slot.slice(11, 16)) : null, cells = [];
+      for (let mi = 0; mi < 60; mi += stp) {
+        const lb = hh + ":" + String(mi).padStart(2, "0"), iso = avail[lb], cov = sel !== null && tm(lb) >= sel && tm(lb) < sel + dur;
+        cells.push('<button class="slot' + (iso ? "" : " off") + (iso === S.slot ? " on" : cov ? " cov" : "") + '"' + (iso ? ' data-a="pick-slot" data-t="' + esc(iso) + '"' : " disabled") + ">" + lb + "</button>");
+      }
+      h += '<div class="slots" style="margin-bottom:10px">' + cells.join("") + "</div>";
+    }
   }
   return h;
 }
@@ -737,7 +746,7 @@ function render() {
     else if (S.step === 4) { head = hdSub(S.barber.name, "back"); body = viewCalendar(); pct = 60; }
     else if (S.step === 5) {
       head = hdSub(S.barber.name, "back"); body = viewTime(); pct = 75;
-      act = (S.slot ? '<div class="sum">' + shortDate(S.date) + ", " + S.slot.slice(11, 16) + "<small>" + esc(S.barber.name) + "</small></div>" : "") + '<button class="primary" data-a="to-confirm"' + (S.slot ? "" : " disabled") + ">" + t("next") + "</button>";
+      act = (S.slot ? '<div class="sum">' + shortDate(S.date) + ", " + S.slot.slice(11, 16) + " – " + endTime() + "<small>" + esc(S.barber.name) + " · " + t("minutes", {n: totals().min}) + "</small></div>" : "") + '<button class="primary" data-a="to-confirm"' + (S.slot ? "" : " disabled") + ">" + t("next") + "</button>";
     }
     else { head = hdSub(t("contact"), "back"); body = viewConfirm(); pct = 90; act = '<button class="primary" id="b-ok" data-a="confirm"' + (phoneOk() ? "" : " disabled") + ">" + t("book_btn") + "</button>"; }
   } else if (v === "info") { head = hdSub(t("about", {name: S.shop.name}), "go-home"); body = viewInfo(); }
@@ -762,6 +771,7 @@ function render() {
 }
 
 // ---------- loaders
+const endTime = () => { const v = +S.slot.slice(11, 13) * 60 + +S.slot.slice(14, 16) + totals().min; return String(Math.floor(v / 60) % 24).padStart(2, "0") + ":" + String(v % 60).padStart(2, "0"); };
 const phoneOk = () => ((S.phone || (S.me && S.me.phone) || "").replace(/\D/g, "").length >= 9);
 async function loadSlots() {
   const req = ++S.slotReq;
