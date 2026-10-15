@@ -181,7 +181,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-bot-8uls.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -865,6 +865,8 @@ const H = {
   },
   "close-app": () => { if (tg && tg.close) tg.close(); else openView("mine"); },
   confirm: async () => {
+    if (S.busy) return; S.busy = true;
+    const bt = document.getElementById("b-ok"); if (bt) { bt.disabled = true; bt.textContent = "…"; }
     try {
       const T = totals();
       await api("/api/bookings", {method: "POST", body: {barber_id: S.barber.id, service_ids: S.picked, start_at: S.slot, phone: S.phone || (S.me && S.me.phone) || null}});
@@ -873,7 +875,7 @@ const H = {
     } catch (e) {
       toast(errText(e), true); haptic("error");
       S.step = 5; loadSlots();
-    }
+    } finally { S.busy = false; }
   },
   again: () => { resetBook(); render(); },
   "mine-scope": d => { S.mineScope = d.s; if (S.mine[d.s] === null) loadMine(d.s); else render(); },
