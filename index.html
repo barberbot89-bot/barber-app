@@ -175,8 +175,6 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 .tag.pending{background:#FFF1D6;color:#B26A00}.st.pending{color:#B26A00}
 .sheet select{width:100%;height:46px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card);color:inherit;font:inherit}
 .slot.off{opacity:.35;text-decoration:line-through}.slot.cov{background:var(--blue-bg);border-color:var(--blue)}
-.gh{display:flex;align-items:center;gap:10px;margin:20px 0 8px}.gh>div{flex:1;min-width:0}.gh b{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:600}
-.gh .thumb{width:38px;height:38px;border-radius:50%}.gh-empty{margin:0 2px 10px}
 </style>
 </head>
 <body>
@@ -184,7 +182,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE ="https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -297,8 +295,6 @@ const errText = e => {
 };
 const isStaff = () => S.me && (S.me.role === "owner" || S.me.role === "admin");
 const isOwner = () => S.me && S.me.role === "owner";
-const isBarber = () => S.me && S.me.role === "barber";
-const hasPanel = () => isStaff() || isBarber(); // owner / admin / Telegramga ulangan usta
 
 // ---------- helpers
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -446,7 +442,7 @@ function dateStrip(selected, from, to, action) {
 
 function branchPills(sel, action, withAll) {
   const list = S.adminBranches || [];
-  if (!isStaff() || list.length < 2) return "";
+  if (list.length < 2) return "";
   let h = '<div class="pills">';
   if (withAll) h += '<button class="pill' + (sel === 0 ? " on" : "") + '" data-a="' + action + '" data-id="0">Hammasi</button>';
   list.forEach(b => { h += '<button class="pill' + (sel === b.id ? " on" : "") + '" data-a="' + action + '" data-id="' + b.id + '">' + esc(nm(b)) + "</button>"; });
@@ -572,7 +568,7 @@ function viewMine() {
     const stKey = past ? "past" : b.status;
     const br = b.branches || {};
     return '<div class="card bk"><div class="top"><span class="sv">' + esc(svcN(b)) + "</span><b>" + money(b.total_price) + "</b></div>" +
-      '<div class="muted" style="margin-top:4px">' + (b.barbers ? esc(t("barber") + ": " + nm(b.barbers)) + " · " : "") + esc(nm(br) || "") + "</div>" +
+      '<div class="muted" style="margin-top:4px">' + esc(nm(br) || "") + "</div>" +
       '<div class="muted">' + esc(ad(br) || "") + "</div>" + mapLink(br) +
       '<div class="meta"><span>' + icon("cal", "s") + shortDate(dateOfIso(b.start_at)) + "</span><span>" + icon("clock", "s") + fmtTime(b.start_at) +
       '</span><span class="st ' + (past ? "cancelled" : b.status) + '">● ' + t("st_" + stKey) + "</span></div>" +
@@ -581,27 +577,23 @@ function viewMine() {
 }
 
 // ---------- views: staff (uz)
-function bookingCard(b, multi) {
-  const u = b.users || {}, btn = (s, cls, txt) => '<button class="small-btn ' + cls + '" data-a="set-status" data-id="' + b.id + '" data-s="' + s + '">' + txt + "</button>";
-  return '<div class="card"><div class="top"><div class="time">' + fmtTime(b.start_at) + "–" + fmtTime(b.end_at) +
-    '</div><span class="tag ' + b.status + '">' + ADMIN_ST[b.status] + "</span></div>" +
-    '<div class="line"><b>' + esc(u.name || "Mijoz") + "</b>" + (u.phone ? ' · <a href="tel:' + esc(u.phone) + '">' + esc(u.phone) + "</a>" : "") + "</div>" +
-    '<div class="line muted">' + esc(svcN(b)) + " · " + money(b.total_price) + (multi && b.branches ? " · " + esc(nm(b.branches)) : "") + "</div>" +
-    (b.status === "pending" ? '<div class="btns">' + btn("booked", "ok", "Tasdiqlash") + btn("cancelled", "no", "Rad etish") + "</div>" : "") +
-    (b.status === "booked" ? '<div class="btns">' + btn("done", "ok", "Bajarildi") + btn("no_show", "no", "Kelmadi") + btn("cancelled", "", "Bekor qilish") + "</div>" : "") + "</div>";
-}
-
 function viewSched() {
-  const L = S.sched.list, full = isStaff();
+  const L = S.sched.list;
   let h = "<h1>Jadval</h1>" + branchPills(S.sched.branch, "sched-branch", true) + dateStrip(S.sched.date, -2, 11, "sched-date");
   if (L === null) return h + loading();
-  if (!L.some(g => g.bookings.length)) return h + '<div class="empty">Bu kunda yozilish yo\'q.</div>';
-  const multi = full && (S.adminBranches || []).length > 1, heads = full || L.length > 1;
-  return h + L.map(g => {
-    const br = (S.adminBranches || []).find(x => x.id === g.barber.branch_id);
-    const head = heads ? '<div class="gh">' + (g.barber.photo_url ? '<img class="thumb" src="' + esc(imgSrc(g.barber.photo_url)) + '" alt="">' : '<span class="thumb"></span>') +
-      "<div><b>" + esc(nm(g.barber)) + "</b>" + (multi && br ? '<div class="muted">' + esc(nm(br)) + "</div>" : "") + '</div><span class="tag">' + g.bookings.length + "</span></div>" : "";
-    return head + (g.bookings.length ? g.bookings.map(b => bookingCard(b, multi)).join("") : heads ? '<div class="muted gh-empty">Bo\'sh</div>' : "");
+  if (!L.length) return h + '<div class="empty">Bu kunda yozilish yo\'q.</div>';
+  const multi = (S.adminBranches || []).length > 1;
+  return h + L.map(b => {
+    const u = b.users || {};
+    return '<div class="card"><div class="top"><div class="time">' + fmtTime(b.start_at) + "–" + fmtTime(b.end_at) +
+      '</div><span class="tag ' + b.status + '">' + ADMIN_ST[b.status] + "</span></div>" +
+      '<div class="line"><b>' + esc(nm(u) || "Mijoz") + "</b>" +
+      (u.phone ? ' · <a href="tel:' + esc(u.phone) + '">' + esc(u.phone) + "</a>" : "") + "</div>" +
+      '<div class="line muted">' + esc(svcN(b)) + " · " + money(b.total_price) + (b.barbers ? " · " + esc(nm(b.barbers)) : "") + (multi && b.branches ? " · " + esc(nm(b.branches)) : "") + "</div>" +
+      (b.status === "pending" ? '<div class="btns"><button class="small-btn ok" data-a="set-status" data-id="' + b.id + '" data-s="booked">Tasdiqlash</button><button class="small-btn no" data-a="set-status" data-id="' + b.id + '" data-s="cancelled">Rad etish</button></div>' : "") + (b.status === "booked" ? '<div class="btns">' +
+        '<button class="small-btn ok" data-a="set-status" data-id="' + b.id + '" data-s="done">Bajarildi</button>' +
+        '<button class="small-btn no" data-a="set-status" data-id="' + b.id + '" data-s="no_show">Kelmadi</button>' +
+        '<button class="small-btn" data-a="set-status" data-id="' + b.id + '" data-s="cancelled">Bekor qilish</button></div>' : "") + "</div>";
   }).join("");
 }
 
@@ -615,13 +607,9 @@ function viewReport() {
   h += '<div class="card"><div class="muted">Tushum</div><div class="big">' + Number(d.revenue).toLocaleString("ru-RU") + sum + "</div></div>" +
     '<div class="grid2">' +
     '<div class="card"><b>' + d.counts.done + '</b><span class="muted">Bajarildi</span></div>' +
-    '<div class="card"><b>' + d.counts.booked + '</b><span class="muted">Tasdiqlangan</span></div>' +
-    '<div class="card"><b>' + (d.counts.pending || 0) + '</b><span class="muted">Tasdiq kutilmoqda</span></div>' +
+    '<div class="card"><b>' + d.counts.booked + '</b><span class="muted">Kutilmoqda</span></div>' +
     '<div class="card"><b>' + d.counts.no_show + '</b><span class="muted">Kelmadi</span></div>' +
     '<div class="card"><b>' + d.counts.cancelled + '</b><span class="muted">Bekor qilingan</span></div></div>';
-  if (d.by_barber && d.by_barber.length) {
-    h += "<h2>Ustalar bo'yicha</h2>" + '<div class="card">' + d.by_barber.map(x => '<div class="list-row"><span><b>' + esc(nm(x)) + '</b><div class="muted">' + x.done + ' bajarildi · ' + x.no_show + ' kelmadi · ' + x.cancelled + ' bekor</div></span><b>' + Number(x.revenue).toLocaleString('ru-RU') + " so'm</b></div>").join('') + '</div>';
-  }
   h += "<h2>Ko'p so'ralgan xizmatlar</h2>";
   h += d.by_service.length
     ? '<div class="card">' + d.by_service.map(s => '<div class="list-row"><span>' + esc(nm(s)) + "</span><b>" + s.count + "</b></div>").join("") + "</div>"
@@ -630,34 +618,32 @@ function viewReport() {
 }
 
 function viewSettings() {
-  const T = S.set, sh = S.shop, full = isStaff(), owner = isOwner();
+  const T = S.set, sh = S.shop;
   const sumUz = " so'm";
   let h = "<h1>Sozlamalar</h1>";
 
-  if (full) {
-    h += "<h2>Do'kon ma'lumotlari</h2>";
-    h += '<div class="card"><div class="row">' + logoHtml() +
-      '<div style="min-width:0"><b>' + esc(nm(sh)) + "</b>" +
-      '<div class="muted">' + esc(ad(sh) || "Manzil kiritilmagan") + "</div>" +
-      '<div class="muted">' + esc(sh.phone || "Telefon kiritilmagan") + "</div>" +
-      '<div class="muted">' + (hasGeo(sh) ? "Lokatsiya bor" : "Lokatsiya yo'q") + "</div></div></div>" +
-      '<div class="btns"><button class="small-btn" data-a="edit-shop">O\'zgartirish</button></div></div>';
+  h += "<h2>Do'kon ma'lumotlari</h2>";
+  h += '<div class="card"><div class="row">' + logoHtml() +
+    '<div style="min-width:0"><b>' + esc(nm(sh)) + "</b>" +
+    '<div class="muted">' + esc(ad(sh) || "Manzil kiritilmagan") + "</div>" +
+    '<div class="muted">' + esc(sh.phone || "Telefon kiritilmagan") + "</div>" +
+    '<div class="muted">' + (hasGeo(sh) ? "Lokatsiya bor" : "Lokatsiya yo'q") + "</div></div></div>" +
+    '<div class="btns"><button class="small-btn" data-a="edit-shop">O\'zgartirish</button></div></div>';
 
-    h += "<h2>Filiallar</h2>";
-    if (S.adminBranches === null) h += loading();
-    else {
-      h += S.adminBranches.map(b =>
-        '<div class="card"><div class="row">' + (b.photo_url ? '<img class="thumb" src="' + esc(imgSrc(b.photo_url)) + '" alt="">' : "") +
-        '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') +
-        '<div class="muted">' + esc(ad(b) || "Manzil kiritilmagan") + "</div>" +
-        '<div class="muted">' + (hasGeo(b) ? "Lokatsiya bor" : "Lokatsiya yo'q") + "</div></div></div>" +
-        '<div class="btns"><button class="small-btn" data-a="edit-branch" data-id="' + b.id + '">O\'zgartirish</button>' +
-        '<button class="small-btn" data-a="toggle-branch" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button></div></div>").join("");
-      h += '<button class="ghost" style="width:100%" data-a="add-branch">+ Filial qo\'shish</button>';
-    }
+  h += "<h2>Filiallar</h2>";
+  if (S.adminBranches === null) h += loading();
+  else {
+    h += S.adminBranches.map(b =>
+      '<div class="card"><div class="row">' + (b.photo_url ? '<img class="thumb" src="' + esc(imgSrc(b.photo_url)) + '" alt="">' : "") +
+      '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') +
+      '<div class="muted">' + esc(ad(b) || "Manzil kiritilmagan") + "</div>" +
+      '<div class="muted">' + (hasGeo(b) ? "Lokatsiya bor" : "Lokatsiya yo'q") + "</div></div></div>" +
+      '<div class="btns"><button class="small-btn" data-a="edit-branch" data-id="' + b.id + '">O\'zgartirish</button>' +
+      '<button class="small-btn" data-a="toggle-branch" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button></div></div>").join("");
+    h += '<button class="ghost" style="width:100%" data-a="add-branch">+ Filial qo\'shish</button>';
   }
 
-  h += "<h2>" + (full ? "Ustalar" : "Mening profilim") + "</h2>";
+  h += "<h2>Ustalar</h2>";
   if (S.adminBarbers === null || T.services === null) h += loading();
   else {
     h += S.adminBarbers.map(b => {
@@ -665,36 +651,36 @@ function viewSettings() {
       const sv = T.services.filter(x => x.barber_id === b.id);
       return '<div class="card"><div class="row">' + (b.photo_url ? '<img class="thumb" src="' + esc(imgSrc(b.photo_url)) + '" alt="">' : "") +
         '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + esc(br ? nm(br) : "") + "</div>" +
-        (full ? '<div class="muted">' + (b.linked ? "📲 Telegram ulangan ✅" : "📲 Telegram ulanmagan (xabar faqat egasiga boradi)") + "</div>" : "") + "</div></div>" +
+        '<div class="muted">' + (b.linked ? "📲 Telegram ulangan ✅" : "📲 Telegram ulanmagan (xabar faqat egasiga boradi)") + "</div></div></div>" +
         '<div class="btns"><button class="small-btn" data-a="edit-barber" data-id="' + b.id + '">O\'zgartirish</button>' +
-        (full ? '<button class="small-btn" data-a="toggle-barber" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button>" : "") +
+        '<button class="small-btn" data-a="toggle-barber" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button>" +
         '<button class="small-btn" data-a="off-days" data-id="' + b.id + '">Dam olish kunlari</button>' +
-        (owner ? '<button class="small-btn" data-a="link-barber" data-id="' + b.id + '">' + (b.linked ? "Qayta ulash" : "Telegramga ulash") + "</button>" : "") +
-        (owner && b.linked ? '<button class="small-btn no" data-a="unlink-barber" data-id="' + b.id + '">Uzish</button>' : "") + "</div>" +
-        (owner && T.binv && T.binv.id === b.id ? '<div class="linkbox-wrap"><div class="muted">Havolani ustaga yuboring. U bir marta ishlaydi.</div><div class="linkbox">' + esc(T.binv.link) + "</div>" +
+        '<button class="small-btn" data-a="link-barber" data-id="' + b.id + '">' + (b.linked ? "Qayta ulash" : "Telegramga ulash") + "</button>" +
+        (b.linked ? '<button class="small-btn no" data-a="unlink-barber" data-id="' + b.id + '">Uzish</button>' : "") + "</div>" +
+        (T.binv && T.binv.id === b.id ? '<div class="linkbox-wrap"><div class="muted">Havolani ustaga yuboring. U bir marta ishlaydi.</div><div class="linkbox">' + esc(T.binv.link) + "</div>" +
           '<div class="btns"><button class="small-btn" data-a="copy-binv">Nusxalash</button><button class="small-btn" data-a="share-binv">Telegram orqali yuborish</button></div></div>' : "") +
         sv.map(x => '<div class="list-row"><span>' + esc(nm(x)) + (x.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + x.duration_min + " daqiqa · " + Number(x.price).toLocaleString("ru-RU") + sumUz + "</div></span>" +
           '<span class="btns" style="margin:0"><button class="small-btn" data-a="edit-service" data-id="' + x.id + '">O\'zgartirish</button>' +
           '<button class="small-btn" data-a="toggle-service" data-id="' + x.id + '">' + (x.active ? "Yashirish" : "Ko'rsatish") + "</button></span></div>").join("") +
         '<button class="ghost" style="width:100%;margin-top:10px" data-a="add-service" data-b="' + b.id + '">+ Xizmat qo\'shish</button></div>';
     }).join("");
-    if (full) h += '<button class="ghost" style="width:100%" data-a="add-barber">+ Usta qo\'shish</button>';
+    h += '<button class="ghost" style="width:100%" data-a="add-barber">+ Usta qo\'shish</button>';
   }
 
-  h += "<h2>Ish vaqti" + (full ? "" : " (faqat ko'rish)") + "</h2>" + branchPills(T.hoursBranch, "hours-branch", false);
+  h += "<h2>Ish vaqti</h2>" + branchPills(T.hoursBranch, "hours-branch", false);
   if (T.hours === null) h += loading();
   else {
     h += '<div class="card">' + DAYS.map((name, i) => {
       const r = T.hours.find(x => x.weekday === i) || {is_off: true};
-      const st = (r.start_time || "09:00").slice(0, 5), en = (r.end_time || "20:00").slice(0, 5), dis = r.is_off || !full;
+      const st = (r.start_time || "09:00").slice(0, 5), en = (r.end_time || "20:00").slice(0, 5);
       return '<div class="hours"><b>' + name + '</b><div class="t">' +
-        '<input type="time" data-h="' + i + '" data-f="start" value="' + st + '"' + (dis ? " disabled" : "") + ">" +
-        '<input type="time" data-h="' + i + '" data-f="end" value="' + en + '"' + (dis ? " disabled" : "") + "></div>" +
-        '<label><input type="checkbox" data-h="' + i + '" data-f="off"' + (r.is_off ? " checked" : "") + (full ? "" : " disabled") + "> Dam olish kuni</label></div>";
+        '<input type="time" data-h="' + i + '" data-f="start" value="' + st + '"' + (r.is_off ? " disabled" : "") + ">" +
+        '<input type="time" data-h="' + i + '" data-f="end" value="' + en + '"' + (r.is_off ? " disabled" : "") + "></div>" +
+        '<label><input type="checkbox" data-h="' + i + '" data-f="off"' + (r.is_off ? " checked" : "") + "> Dam olish kuni</label></div>";
     }).join("") + "</div>";
   }
 
-  if (owner) {
+  if (isOwner()) {
     h += "<h2>Adminlar</h2>";
     if (T.admins === null) h += loading();
     else {
@@ -742,7 +728,7 @@ function modalHtml() {
     return '<div class="sheet"><div><h2 style="margin-top:0">' + (m.data ? "Ustani o'zgartirish" : "Yangi usta") + "</h2>" +
       '<label for="f-name">Ismi</label><input id="f-name" type="text" value="' + esc(d.name || "") + '">' +
       '<label for="f-name-ru">Ismi (ruscha)</label><input id="f-name-ru" type="text" value="' + esc(d.name_ru || "") + '">' +
-      (isStaff() ? '<label for="f-br">Filial</label><select id="f-br">' + opts + "</select>" : "") + photoField("Rasm", d.photo_url, "photo") + foot + "</div></div>";
+      '<label for="f-br">Filial</label><select id="f-br">' + opts + "</select>" + photoField("Rasm", d.photo_url, "photo") + foot + "</div></div>";
   }
   if (m.type === "off") {
     const days = []; for (let i = 0; i <= 30; i++) days.push(ymd(i));
@@ -774,7 +760,7 @@ function modalHtml() {
 function render() { render0(); if (S.lang === "ru") ruTree($app); }
 function render0() {
   if (!S.shop) return;
-  const staff = hasPanel();
+  const staff = isStaff();
   const v = S.view;
   let head = "", body = "", act = "", pct = 100;
 
@@ -835,17 +821,16 @@ async function loadMine(scope) {
 }
 async function loadSched() {
   S.sched.list = null; render();
-  try { S.sched.list = await api("/api/admin/schedule?date_=" + S.sched.date + "&branch_id=" + S.sched.branch); } catch (e) { S.sched.list = []; toast(errText(e), true); }
+  try { S.sched.list = await api("/api/admin/bookings?date_=" + S.sched.date + "&branch_id=" + S.sched.branch); } catch (e) { S.sched.list = []; toast(errText(e), true); }
   render();
 }
 async function loadReport() {
   S.report.data = null; render();
   try { S.report.data = await api("/api/admin/report?period=" + S.report.period + "&branch_id=" + S.report.branch); }
-  catch (e) { S.report.data = {revenue: 0, counts: {booked: 0, done: 0, no_show: 0, cancelled: 0}, by_service: [], by_barber: []}; toast(errText(e), true); }
+  catch (e) { S.report.data = {revenue: 0, counts: {booked: 0, done: 0, no_show: 0, cancelled: 0}, by_service: []}; toast(errText(e), true); }
   render();
 }
 async function refreshBranches() {
-  if (!isStaff()) return; // /api/admin/branches faqat owner/admin uchun
   S.adminBranches = await api("/api/admin/branches");
   S.branches = S.adminBranches.filter(b => b.active);
 }
@@ -860,8 +845,7 @@ async function loadSettings() {
   try {
     const [sv, bs] = await Promise.all([api("/api/admin/services"), api("/api/admin/barbers"), refreshBranches()]);
     S.set.services = sv; S.adminBarbers = bs;
-    if (!isStaff()) S.set.hoursBranch = (bs[0] && bs[0].branch_id) || 0;
-    else if (!S.adminBranches.some(b => b.id === S.set.hoursBranch)) S.set.hoursBranch = S.adminBranches.length ? S.adminBranches[0].id : 0;
+    if (!S.adminBranches.some(b => b.id === S.set.hoursBranch)) S.set.hoursBranch = S.adminBranches.length ? S.adminBranches[0].id : 0;
     S.set.hours = S.set.hoursBranch ? await api("/api/admin/work-hours?branch_id=" + S.set.hoursBranch) : [];
     if (isOwner()) S.set.admins = await api("/api/admin/admins");
   } catch (e) {
@@ -988,7 +972,7 @@ const H = {
   },
   "edit-barber": d => { S.modal = {type: "barber", data: S.adminBarbers.find(b => b.id === Number(d.id)), pending: null}; render(); },
   "save-barber": async () => {
-    const m = S.modal, name = document.getElementById("f-name").value.trim(), branch_id = isStaff() ? Number(document.getElementById("f-br").value) : m.data.branch_id;
+    const m = S.modal, name = document.getElementById("f-name").value.trim(), branch_id = Number(document.getElementById("f-br").value);
     if (!name || !branch_id) { toast("Ism va filialni kiriting", true); return; }
     try {
       const br = m.data ? await api("/api/admin/barbers/" + m.data.id, {method: "PATCH", body: {name, branch_id, name_ru: (document.getElementById("f-name-ru").value || "").trim()}})
@@ -1127,7 +1111,7 @@ document.addEventListener("change", async e => {
     } catch (err) { toast("Rasmni o'qib bo'lmadi", true); }
     return;
   }
-  if (el.dataset.h === undefined || !isStaff()) return;
+  if (el.dataset.h === undefined) return;
   const i = Number(el.dataset.h);
   const q = f => document.querySelector('[data-h="' + i + '"][data-f="' + f + '"]');
   const off = q("off").checked, st = q("start").value, en = q("end").value;
@@ -1158,7 +1142,6 @@ async function boot() {
     S.me = b.me; S.shop = b.shop; S.branches = b.branches; S.services = b.services; S.barbers = b.barbers || [];
     S.lang = b.me.lang || S.lang; store("lang", S.lang);
     if (isStaff()) S.adminBranches = await api("/api/admin/branches");
-    else if (isBarber()) S.adminBranches = S.branches.slice();
   } catch (e) {
     clearTimeout(slow);
     screen(t("failed"), errText(e), true);
@@ -1167,7 +1150,7 @@ async function boot() {
   clearTimeout(slow);
   applyTheme();
   document.title = nm(S.shop);
-  S.view = hasPanel() ? "sched" : "home";
+  S.view = isStaff() ? "sched" : "home";
   if (S.view === "sched") loadSched(); else render();
 }
 boot();
