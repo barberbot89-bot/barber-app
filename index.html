@@ -182,7 +182,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -219,6 +219,10 @@ const I18N = {
     err_server_error: "Server xatosi. Birozdan keyin urinib ko'ring.", err_network: "Server bilan aloqa yo'q.",
   },
   ru: {
+    st_pending: "Ожидает подтверждения", choose_barber: "Выберите мастера", from_price: "от {p}", choose_svc: "Выберите услуги",
+    next: "Далее", choose_date: "Выберите дату", choose_time: "Выберите время", free_n: "{n} свободно", busy: "занято", contact: "Контакты", your_phone: "Ваш телефон",
+    phone_sub: "Мастер свяжется с вами при необходимости", share_contact: "Поделиться контактом", book_btn: "Записаться", barber: "Мастер", total: "Итого", svc_n: "услуг: {n}",
+    pend_title: "Ожидает подтверждения", pend_text: "Мастер скоро подтвердит вашу запись", close: "Закрыть", no_barbers: "Мастеров пока нет.",
     choose_branch: "Выберите филиал", choose_branch_sub: "В какой филиал хотите записаться?",
     open_map: "Открыть карту", no_branches: "Филиалы пока не добавлены.",
     choose_service: "Выберите услугу", no_services: "Услуги пока не добавлены.", minutes: "{n} мин",
@@ -233,7 +237,7 @@ const I18N = {
     theme: "Тема", sum: "сум",
     loading: "Загрузка", wait: "Минутку…", waking: "Сервер просыпается", waking_sub: "При первом открытии придётся подождать до минуты.",
     retry: "Повторить", failed: "Не удалось открыть", setup_title: "Нужна настройка", setup_text: "Впишите адрес Render в API_BASE внутри index.html.",
-    st_booked: "Ожидается", st_done: "Выполнено", st_no_show: "Не пришёл", st_cancelled: "Отменено", st_past: "Прошла",
+    st_booked: "Подтверждена", st_done: "Выполнено", st_no_show: "Не пришёл", st_cancelled: "Отменено", st_past: "Прошла",
     err_auth_required: "Откройте приложение через Telegram.", err_auth_invalid: "Ошибка входа. Откройте приложение заново.",
     err_auth_expired: "Сессия устарела. Откройте приложение заново.", err_slot_unavailable: "Это время занято или недоступно.",
     err_slot_taken: "Это время только что заняли. Выберите другое.", err_too_many: "Достигнут лимит активных записей.",
@@ -267,6 +271,19 @@ const S = {
   set: {services: null, hours: null, hoursBranch: 0, admins: null, invite: null},
   modal: null,
 };
+const nm = o => (o && ((S.lang === "ru" && o.name_ru) || o.name)) || "";
+const ad = o => (o && ((S.lang === "ru" && o.address_ru) || o.address)) || "";
+const svcN = b => ((S.lang === "ru" && b.svc_names_ru) || b.svc_names || "");
+const RU_UI = [["Ustani o'zgartirish", "Изменить мастера"], ["Xizmatni o'zgartirish", "Изменить услугу"], ["Filialni o'zgartirish", "Изменить филиал"], ["Yangi usta", "Новый мастер"], ["Yangi xizmat", "Новая услуга"], ["Yangi filial", "Новый филиал"],
+  ["+ Xizmat qo'shish", "+ Добавить услугу"], ["+ Usta qo'shish", "+ Добавить мастера"], ["Dam olish kunlari", "Выходные дни"], ["Kunni bosing: dam olish kuni belgilanadi yoki olib tashlanadi.", "Нажмите на день, чтобы отметить или снять выходной."],
+  ["O'zgartirish", "Изменить"], ["Yashirish", "Скрыть"], ["Ko'rsatish", "Показать"], ["Yashirin", "Скрыто"], [" daqiqa · ", " мин · "], ["Tasdiqlash", "Подтвердить"], ["Rad etish", "Отклонить"],
+  ["Ustalar", "Мастера"], ["Tayyor", "Готово"], ["Nomi (ruscha)", "Название (рус.)"], ["Ismi (ruscha)", "Имя (рус.)"], ["Manzil (ruscha)", "Адрес (рус.)"], ["Nomi", "Название"], ["Ismi", "Имя"], ["Manzil (yozuv)", "Адрес (текст)"], ["Manzil", "Адрес"],
+  ["Filial", "Филиал"], ["Rasm", "Фото"], ["Narxi (so'm)", "Цена (сум)"], ["Davomiyligi (daqiqa)", "Длительность (мин)"], ["Saqlandi", "Сохранено"], ["Avval filial qo'shing", "Сначала добавьте филиал"], ["Ism va filialni kiriting", "Введите имя и филиал"]];
+const ruMsg = m => { if (S.lang !== "ru") return m; RU_UI.forEach(([a, b]) => { m = String(m).split(a).join(b); }); return m; };
+function ruTree(root) {
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) { const v = n.nodeValue; if (v.trim()) { const r = ruMsg(v); if (r !== v) n.nodeValue = r; } }
+}
 const t = (k, v) => {
   let s = (I18N[S.lang] && I18N[S.lang][k]) || I18N.uz[k] || k;
   if (v) for (const x in v) s = s.split("{" + x + "}").join(v[x]);
@@ -296,6 +313,7 @@ const imgSrc = u => (u ? API_BASE + u : "");
 S.date = ymd(0); S.sched.date = ymd(0); S.barbers = [];
 
 function toast(msg, err) {
+  msg = ruMsg(msg);
   const el = document.createElement("div");
   el.className = "toast" + (err ? " err" : "");
   el.textContent = msg;
@@ -393,19 +411,19 @@ const icon = (k, cls) => '<svg class="' + (cls || "i") + '" viewBox="0 0 24 24" 
 // ---------- components
 function logoHtml() {
   if (S.shop.logo_url) return '<img class="logo" src="' + esc(imgSrc(S.shop.logo_url)) + '" alt="">';
-  return '<span class="logo ph">' + esc((S.shop.name || "B").trim().charAt(0).toUpperCase()) + "</span>";
+  return '<span class="logo ph">' + esc((nm(S.shop) || "B").trim().charAt(0).toUpperCase()) + "</span>";
 }
 const themeBtn = () => '<button class="ib" data-a="theme" aria-label="' + t("theme") + '">' + icon(S.theme === "dark" ? "sun" : "moon") + "</button>";
 const langBtn = () => '<button class="ib txt" data-a="lang" aria-label="Til / Язык">' + S.lang.toUpperCase() + "</button>";
 
 function hdHome() {
-  return '<header class="hd"><div class="brand">' + logoHtml() + "<b>" + esc(S.shop.name) + '</b></div><div class="tools">' +
+  return '<header class="hd"><div class="brand">' + logoHtml() + "<b>" + esc(nm(S.shop)) + '</b></div><div class="tools">' +
     langBtn() + themeBtn() +
     '<button class="ib" data-a="view" data-v="info" aria-label="' + t("info_title") + '">' + icon("info") + "</button>" +
     '<button class="ib" data-a="view" data-v="mine" aria-label="' + t("my_bookings") + '">' + icon("history") + "</button></div></header>";
 }
 function hdStaff() {
-  return '<header class="hd"><div class="brand">' + logoHtml() + "<b>" + esc(S.shop.name) + '</b></div><div class="tools">' + themeBtn() + "</div></header>";
+  return '<header class="hd"><div class="brand">' + logoHtml() + "<b>" + esc(nm(S.shop)) + '</b></div><div class="tools">' + themeBtn() + "</div></header>";
 }
 function hdSub(title, backAction) {
   return '<header class="hd"><button class="ib" data-a="' + backAction + '" aria-label="Back">' + icon("back") + "</button>" +
@@ -427,7 +445,7 @@ function branchPills(sel, action, withAll) {
   if (list.length < 2) return "";
   let h = '<div class="pills">';
   if (withAll) h += '<button class="pill' + (sel === 0 ? " on" : "") + '" data-a="' + action + '" data-id="0">Hammasi</button>';
-  list.forEach(b => { h += '<button class="pill' + (sel === b.id ? " on" : "") + '" data-a="' + action + '" data-id="' + b.id + '">' + esc(b.name) + "</button>"; });
+  list.forEach(b => { h += '<button class="pill' + (sel === b.id ? " on" : "") + '" data-a="' + action + '" data-id="' + b.id + '">' + esc(nm(b)) + "</button>"; });
   return h + "</div>";
 }
 
@@ -443,8 +461,8 @@ function viewBranches() {
   return h + S.branches.map(b =>
     '<div class="bcard" role="button" tabindex="0" data-a="pick-branch" data-id="' + b.id + '">' +
     (b.photo_url ? '<img src="' + esc(imgSrc(b.photo_url)) + '" alt="" loading="lazy">' : "") +
-    '<div class="bbody"><span class="pinbox">' + icon("pin") + "</span><div><b>" + esc(b.name) + "</b>" +
-    '<div class="muted">' + esc(b.address || "") + "</div>" + mapLink(b) + "</div></div></div>").join("");
+    '<div class="bbody"><span class="pinbox">' + icon("pin") + "</span><div><b>" + esc(nm(b)) + "</b>" +
+    '<div class="muted">' + esc(ad(b) || "") + "</div>" + mapLink(b) + "</div></div></div>").join("");
 }
 
 const pickedSvcs = () => (S.services || []).filter(x => S.picked.includes(x.id));
@@ -453,25 +471,25 @@ const subHd = txt => "<p class='sub' style='margin-top:14px'>" + esc(txt) + "</p
 
 function viewBarbers() {
   const L = S.barbers.filter(x => x.branch_id === S.branch.id && x.min_price != null);
-  if (!L.length) return subHd(S.branch.name) + '<div class="empty">' + t("no_barbers") + "</div>";
+  if (!L.length) return subHd(nm(S.branch)) + '<div class="empty">' + t("no_barbers") + "</div>";
   return "<h2 style='margin-top:14px'>" + t("choose_barber") + '</h2><div class="bgrid">' + L.map(x =>
     '<div class="bcard" role="button" tabindex="0" data-a="pick-barber" data-id="' + x.id + '">' +
     (x.photo_url ? '<img src="' + esc(imgSrc(x.photo_url)) + '" alt="" loading="lazy">' : '<div class="noimg"></div>') +
-    '<div class="bbody"><b>' + esc(x.name) + '</b><div class="muted">' + t("from_price", {p: money(x.min_price)}) + "</div></div></div>").join("") + "</div>";
+    '<div class="bbody"><b>' + esc(nm(x)) + '</b><div class="muted">' + t("from_price", {p: money(x.min_price)}) + "</div></div></div>").join("") + "</div>";
 }
 
 function viewServices() {
   const L = (S.services || []).filter(x => x.barber_id === S.barber.id);
-  return subHd(S.barber.name) + "<h2 style='margin-top:6px'>" + t("choose_svc") + "</h2>" + L.map(s =>
-    '<button class="svc' + (S.picked.includes(s.id) ? " on" : "") + '" data-a="toggle-svc" data-id="' + s.id + '"><span><b>' + esc(s.name) +
+  return subHd(nm(S.barber)) + "<h2 style='margin-top:6px'>" + t("choose_svc") + "</h2>" + L.map(s =>
+    '<button class="svc' + (S.picked.includes(s.id) ? " on" : "") + '" data-a="toggle-svc" data-id="' + s.id + '"><span><b>' + esc(nm(s)) +
     "</b><small>" + t("minutes", {n: s.duration_min}) + "</small></span><em>" + money(s.price) + "</em></button>").join("");
 }
 
 function viewCalendar() {
   const m = S.cal, off = S.off, today = ymd(0), max = ymd(30);
-  if (!off) return subHd(S.barber.name) + loading();
+  if (!off) return subHd(nm(S.barber)) + loading();
   const lead = (new Date(Date.UTC(m.y, m.m - 1, 1, 12)).getUTCDay() + 6) % 7, n = new Date(Date.UTC(m.y, m.m, 0)).getUTCDate();
-  let h = subHd(S.barber.name) + "<h2 style='margin-top:6px'>" + t("choose_date") + '</h2><div class="card"><div class="top"><button class="ib" data-a="cal-nav" data-n="-1">' + icon("back") + "</button><b>" +
+  let h = subHd(nm(S.barber)) + "<h2 style='margin-top:6px'>" + t("choose_date") + '</h2><div class="card"><div class="top"><button class="ib" data-a="cal-nav" data-n="-1">' + icon("back") + "</button><b>" +
     MONTHS[S.lang][m.m - 1] + " " + m.y + '</b><button class="ib" data-a="cal-nav" data-n="1" style="transform:scaleX(-1)">' + icon("back") + '</button></div><div class="cal">' +
     [1, 2, 3, 4, 5, 6, 0].map(i => "<small>" + WD[S.lang][i] + "</small>").join("");
   for (let i = 0; i < lead; i++) h += "<span></span>";
@@ -484,7 +502,7 @@ function viewCalendar() {
 }
 
 function viewTime() {
-  let h = subHd(S.barber.name) + '<button class="pill on" data-a="back" style="margin-bottom:6px">' + longDate(S.date) + " ✕</button><h2 style='margin-top:10px'>" + t("choose_time") + "</h2>";
+  let h = subHd(nm(S.barber)) + '<button class="pill on" data-a="back" style="margin-bottom:6px">' + longDate(S.date) + " ✕</button><h2 style='margin-top:10px'>" + t("choose_time") + "</h2>";
   const I = S.slotInfo, tm = x => +x.slice(0, 2) * 60 + +x.slice(3, 5), avail = {};
   if (S.slots === null) return h + loading();
   S.slots.forEach(x => { avail[x.slice(11, 16)] = x; });
@@ -507,8 +525,8 @@ function viewTime() {
 
 function viewConfirm() {
   const T = totals(), row = (k, v) => '<div class="list-row"><span class="muted">' + t(k) + "</span><b style='text-align:right'>" + v + "</b></div>";
-  return subHd(t("phone_sub")) + '<div class="card">' + row("branch", esc(S.branch.name)) + row("barber", esc(S.barber.name)) +
-    row("service", T.p.map(x => esc(x.name) + ' <span class="muted">· ' + t("minutes", {n: x.duration_min}) + "</span>").join("<br>")) +
+  return subHd(t("phone_sub")) + '<div class="card">' + row("branch", esc(nm(S.branch))) + row("barber", esc(nm(S.barber))) +
+    row("service", T.p.map(x => esc(nm(x)) + ' <span class="muted">· ' + t("minutes", {n: x.duration_min}) + "</span>").join("<br>")) +
     row("date_time", shortDate(S.slot.slice(0, 10)) + ", " + S.slot.slice(11, 16)) + row("total", money(T.price) + ' <span class="muted">· ' + t("minutes", {n: T.min}) + "</span>") + "</div>" +
     '<div class="ph"><button class="primary" style="width:100%" data-a="share-contact">' + icon("phone", "s") + " " + t("share_contact") + '</button>' +
     '<input id="f-ph" type="tel" inputmode="tel" placeholder="+998 90 123 45 67" value="' + esc(S.phone || (S.me && S.me.phone) || "") + '"></div>';
@@ -517,7 +535,7 @@ function viewConfirm() {
 function viewDone() {
   const D = S.done;
   return '<div class="pend"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h1 style="text-align:center">' + t("pend_title") + "</h1>" +
-    '<p class="sub" style="text-align:center">' + esc(D.branch.name) + "<br>" + esc(D.barber) + "<br>" + esc(D.names) + "<br>" + longDate(D.date) + ", " + D.time +
+    '<p class="sub" style="text-align:center">' + esc(nm(D.branch)) + "<br>" + esc(D.barber) + "<br>" + esc(D.names) + "<br>" + longDate(D.date) + ", " + D.time +
     '<br><b style="color:var(--ink)">' + money(D.price) + " · " + t("minutes", {n: D.min}) + '</b></p><p style="text-align:center;color:#B26A00">' + t("pend_text") + "</p>";
 }
 
@@ -527,7 +545,7 @@ function viewInfo() {
   let h = "";
   if (sh.logo_url) h += '<div class="hero"><img src="' + esc(imgSrc(sh.logo_url)) + '" alt=""></div>';
   if (desc) h += '<div class="about">' + esc(desc) + "</div>";
-  if (sh.address) h += '<div class="infocard"><span class="pinbox">' + icon("pin") + "</span><div>" + esc(sh.address) + "</div></div>";
+  if (ad(sh)) h += '<div class="infocard"><span class="pinbox">' + icon("pin") + "</span><div>" + esc(ad(sh)) + "</div></div>";
   if (sh.phone) h += '<a class="infocard" href="tel:' + esc(sh.phone.replace(/[^\d+]/g, "")) + '"><span class="pinbox">' + icon("phone") + "</span><div>" + esc(sh.phone) + "</div></a>";
   if (hasGeo(sh)) {
     h += '<iframe class="mapframe" title="' + t("map") + '" loading="lazy" src="' + esc(osmEmbed(sh.lat, sh.lng)) + '"></iframe>' +
@@ -549,9 +567,9 @@ function viewMine() {
     const past = (b.status === "booked" || b.status === "pending") && new Date(b.end_at) < new Date();
     const stKey = past ? "past" : b.status;
     const br = b.branches || {};
-    return '<div class="card bk"><div class="top"><span class="sv">' + esc(b.svc_names || "") + "</span><b>" + money(b.total_price) + "</b></div>" +
-      '<div class="muted" style="margin-top:4px">' + esc(br.name || "") + "</div>" +
-      '<div class="muted">' + esc(br.address || "") + "</div>" + mapLink(br) +
+    return '<div class="card bk"><div class="top"><span class="sv">' + esc(svcN(b)) + "</span><b>" + money(b.total_price) + "</b></div>" +
+      '<div class="muted" style="margin-top:4px">' + esc(nm(br) || "") + "</div>" +
+      '<div class="muted">' + esc(ad(br) || "") + "</div>" + mapLink(br) +
       '<div class="meta"><span>' + icon("cal", "s") + shortDate(dateOfIso(b.start_at)) + "</span><span>" + icon("clock", "s") + fmtTime(b.start_at) +
       '</span><span class="st ' + (past ? "cancelled" : b.status) + '">● ' + t("st_" + stKey) + "</span></div>" +
       (sc === "active" ? '<div class="btns"><button class="small-btn no" data-a="cancel-mine" data-id="' + b.id + '">' + t("cancel_booking") + "</button></div>" : "") + "</div>";
@@ -569,9 +587,9 @@ function viewSched() {
     const u = b.users || {};
     return '<div class="card"><div class="top"><div class="time">' + fmtTime(b.start_at) + "–" + fmtTime(b.end_at) +
       '</div><span class="tag ' + b.status + '">' + ADMIN_ST[b.status] + "</span></div>" +
-      '<div class="line"><b>' + esc(u.name || "Mijoz") + "</b>" +
+      '<div class="line"><b>' + esc(nm(u) || "Mijoz") + "</b>" +
       (u.phone ? ' · <a href="tel:' + esc(u.phone) + '">' + esc(u.phone) + "</a>" : "") + "</div>" +
-      '<div class="line muted">' + esc(b.svc_names || "") + " · " + money(b.total_price) + (b.barbers ? " · " + esc(b.barbers.name) : "") + (multi && b.branches ? " · " + esc(b.branches.name) : "") + "</div>" +
+      '<div class="line muted">' + esc(svcN(b)) + " · " + money(b.total_price) + (b.barbers ? " · " + esc(nm(b.barbers)) : "") + (multi && b.branches ? " · " + esc(nm(b.branches)) : "") + "</div>" +
       (b.status === "pending" ? '<div class="btns"><button class="small-btn ok" data-a="set-status" data-id="' + b.id + '" data-s="booked">Tasdiqlash</button><button class="small-btn no" data-a="set-status" data-id="' + b.id + '" data-s="cancelled">Rad etish</button></div>' : "") + (b.status === "booked" ? '<div class="btns">' +
         '<button class="small-btn ok" data-a="set-status" data-id="' + b.id + '" data-s="done">Bajarildi</button>' +
         '<button class="small-btn no" data-a="set-status" data-id="' + b.id + '" data-s="no_show">Kelmadi</button>' +
@@ -594,7 +612,7 @@ function viewReport() {
     '<div class="card"><b>' + d.counts.cancelled + '</b><span class="muted">Bekor qilingan</span></div></div>';
   h += "<h2>Ko'p so'ralgan xizmatlar</h2>";
   h += d.by_service.length
-    ? '<div class="card">' + d.by_service.map(s => '<div class="list-row"><span>' + esc(s.name) + "</span><b>" + s.count + "</b></div>").join("") + "</div>"
+    ? '<div class="card">' + d.by_service.map(s => '<div class="list-row"><span>' + esc(nm(s)) + "</span><b>" + s.count + "</b></div>").join("") + "</div>"
     : '<div class="empty">Hali bajarilgan vizit yo\'q.</div>';
   return h;
 }
@@ -606,8 +624,8 @@ function viewSettings() {
 
   h += "<h2>Do'kon ma'lumotlari</h2>";
   h += '<div class="card"><div class="row">' + logoHtml() +
-    '<div style="min-width:0"><b>' + esc(sh.name) + "</b>" +
-    '<div class="muted">' + esc(sh.address || "Manzil kiritilmagan") + "</div>" +
+    '<div style="min-width:0"><b>' + esc(nm(sh)) + "</b>" +
+    '<div class="muted">' + esc(ad(sh) || "Manzil kiritilmagan") + "</div>" +
     '<div class="muted">' + esc(sh.phone || "Telefon kiritilmagan") + "</div>" +
     '<div class="muted">' + (hasGeo(sh) ? "Lokatsiya bor" : "Lokatsiya yo'q") + "</div></div></div>" +
     '<div class="btns"><button class="small-btn" data-a="edit-shop">O\'zgartirish</button></div></div>';
@@ -617,8 +635,8 @@ function viewSettings() {
   else {
     h += S.adminBranches.map(b =>
       '<div class="card"><div class="row">' + (b.photo_url ? '<img class="thumb" src="' + esc(imgSrc(b.photo_url)) + '" alt="">' : "") +
-      '<div style="min-width:0"><b>' + esc(b.name) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') +
-      '<div class="muted">' + esc(b.address || "Manzil kiritilmagan") + "</div>" +
+      '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') +
+      '<div class="muted">' + esc(ad(b) || "Manzil kiritilmagan") + "</div>" +
       '<div class="muted">' + (hasGeo(b) ? "Lokatsiya bor" : "Lokatsiya yo'q") + "</div></div></div>" +
       '<div class="btns"><button class="small-btn" data-a="edit-branch" data-id="' + b.id + '">O\'zgartirish</button>' +
       '<button class="small-btn" data-a="toggle-branch" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button></div></div>").join("");
@@ -632,11 +650,11 @@ function viewSettings() {
       const br = (S.adminBranches || []).find(x => x.id === b.branch_id);
       const sv = T.services.filter(x => x.barber_id === b.id);
       return '<div class="card"><div class="row">' + (b.photo_url ? '<img class="thumb" src="' + esc(imgSrc(b.photo_url)) + '" alt="">' : "") +
-        '<div style="min-width:0"><b>' + esc(b.name) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + esc(br ? br.name : "") + "</div></div></div>" +
+        '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + esc(br ? nm(br) : "") + "</div></div></div>" +
         '<div class="btns"><button class="small-btn" data-a="edit-barber" data-id="' + b.id + '">O\'zgartirish</button>' +
         '<button class="small-btn" data-a="toggle-barber" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button>" +
         '<button class="small-btn" data-a="off-days" data-id="' + b.id + '">Dam olish kunlari</button></div>' +
-        sv.map(x => '<div class="list-row"><span>' + esc(x.name) + (x.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + x.duration_min + " daqiqa · " + Number(x.price).toLocaleString("ru-RU") + sumUz + "</div></span>" +
+        sv.map(x => '<div class="list-row"><span>' + esc(nm(x)) + (x.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + x.duration_min + " daqiqa · " + Number(x.price).toLocaleString("ru-RU") + sumUz + "</div></span>" +
           '<span class="btns" style="margin:0"><button class="small-btn" data-a="edit-service" data-id="' + x.id + '">O\'zgartirish</button>' +
           '<button class="small-btn" data-a="toggle-service" data-id="' + x.id + '">' + (x.active ? "Yashirish" : "Ko'rsatish") + "</button></span></div>").join("") +
         '<button class="ghost" style="width:100%;margin-top:10px" data-a="add-service" data-b="' + b.id + '">+ Xizmat qo\'shish</button></div>';
@@ -663,7 +681,7 @@ function viewSettings() {
     else {
       h += T.admins.length
         ? '<div class="card">' + T.admins.map(a =>
-          '<div class="list-row"><span><b>' + esc(a.name || "Admin") + '</b><div class="muted">' + esc(a.phone || "") + "</div></span>" +
+          '<div class="list-row"><span><b>' + esc(nm(a) || "Admin") + '</b><div class="muted">' + esc(a.phone || "") + "</div></span>" +
           '<button class="small-btn no" data-a="remove-admin" data-id="' + a.telegram_id + '">O\'chirish</button></div>').join("") + "</div>"
         : '<div class="empty">Hozircha qo\'shimcha admin yo\'q.</div>';
       h += '<button class="ghost" style="width:100%" data-a="invite">+ Admin qo\'shish havolasi</button>';
@@ -696,39 +714,46 @@ function modalHtml() {
   if (m.type === "service") {
     return '<div class="sheet"><div><h2 style="margin-top:0">' + (m.data ? "Xizmatni o'zgartirish" : "Yangi xizmat") + "</h2>" +
       '<label for="f-name">Nomi</label><input id="f-name" type="text" value="' + esc(d.name || "") + '" placeholder="Soch olish">' +
+      '<label for="f-name-ru">Nomi (ruscha)</label><input id="f-name-ru" type="text" value="' + esc(d.name_ru || "") + '">' +
       '<label for="f-price">Narxi (so\'m)</label><input id="f-price" type="number" inputmode="numeric" value="' + esc(d.price || "") + '" placeholder="50000">' +
       '<label for="f-dur">Davomiyligi (daqiqa)</label><input id="f-dur" type="number" inputmode="numeric" value="' + esc(d.duration_min || "") + '" placeholder="30">' + foot + "</div></div>";
   }
   if (m.type === "barber") {
-    const opts = (S.adminBranches || []).map(b => '<option value="' + b.id + '"' + (b.id === d.branch_id ? " selected" : "") + ">" + esc(b.name) + "</option>").join("");
+    const opts = (S.adminBranches || []).map(b => '<option value="' + b.id + '"' + (b.id === d.branch_id ? " selected" : "") + ">" + esc(nm(b)) + "</option>").join("");
     return '<div class="sheet"><div><h2 style="margin-top:0">' + (m.data ? "Ustani o'zgartirish" : "Yangi usta") + "</h2>" +
       '<label for="f-name">Ismi</label><input id="f-name" type="text" value="' + esc(d.name || "") + '">' +
+      '<label for="f-name-ru">Ismi (ruscha)</label><input id="f-name-ru" type="text" value="' + esc(d.name_ru || "") + '">' +
       '<label for="f-br">Filial</label><select id="f-br">' + opts + "</select>" + photoField("Rasm", d.photo_url, "photo") + foot + "</div></div>";
   }
   if (m.type === "off") {
     const days = []; for (let i = 0; i <= 30; i++) days.push(ymd(i));
-    return '<div class="sheet"><div><h2 style="margin-top:0">Dam olish kunlari</h2><div class="muted">' + esc(d.name) + '</div><div class="hint">Kunni bosing: dam olish kuni belgilanadi yoki olib tashlanadi.</div><div class="cal">' +
+    return '<div class="sheet"><div><h2 style="margin-top:0">Dam olish kunlari</h2><div class="muted">' + esc(nm(d)) + '</div><div class="hint">Kunni bosing: dam olish kuni belgilanadi yoki olib tashlanadi.</div><div class="cal">' +
       days.map(k => { const p = parts(k); return '<button class="cd' + (m.days.has(k) ? " on" : "") + '" data-a="toggle-off" data-d="' + k + '">' + p.d + '<span style="display:block;font-size:10px;opacity:.6">' + WD.uz[p.wd] + "</span></button>"; }).join("") +
       '</div><div class="btns" style="margin-top:18px"><button class="primary" data-a="close-modal">Tayyor</button></div></div></div>';
   }
   if (m.type === "branch") {
     return '<div class="sheet"><div><h2 style="margin-top:0">' + (m.data ? "Filialni o'zgartirish" : "Yangi filial") + "</h2>" +
       '<label for="f-name">Nomi</label><input id="f-name" type="text" value="' + esc(d.name || "") + '" placeholder="Islam Karimov 8">' +
+      '<label for="f-name-ru">Nomi (ruscha)</label><input id="f-name-ru" type="text" value="' + esc(d.name_ru || "") + '">' +
       '<label for="f-addr">Manzil</label><input id="f-addr" type="text" value="' + esc(d.address || "") + '" placeholder="Islom Karimov ko\'chasi 8, Toshkent">' +
+      '<label for="f-addr-ru">Manzil (ruscha)</label><input id="f-addr-ru" type="text" value="' + esc(d.address_ru || "") + '">' +
       locField + photoField("Rasm", d.photo_url, "photo") + foot + "</div></div>";
   }
   return '<div class="sheet"><div><h2 style="margin-top:0">Do\'kon ma\'lumotlari</h2>' +
     '<label for="f-name">Nomi</label><input id="f-name" type="text" value="' + esc(d.name || "") + '">' +
+    '<label for="f-name-ru">Nomi (ruscha)</label><input id="f-name-ru" type="text" value="' + esc(d.name_ru || "") + '">' +
     photoField("Logo", d.logo_url, "logo") +
     '<label for="f-uz">Tavsif (o\'zbekcha)</label><textarea id="f-uz">' + esc(d.desc_uz || "") + "</textarea>" +
     '<label for="f-ru">Tavsif (ruscha)</label><textarea id="f-ru">' + esc(d.desc_ru || "") + "</textarea>" +
     '<label for="f-addr">Manzil (yozuv)</label><input id="f-addr" type="text" value="' + esc(d.address || "") + '">' +
+    '<label for="f-addr-ru">Manzil (ruscha)</label><input id="f-addr-ru" type="text" value="' + esc(d.address_ru || "") + '">' +
     '<label for="f-phone">Bog\'lanish raqami</label><input id="f-phone" type="text" inputmode="tel" value="' + esc(d.phone || "") + '" placeholder="+998 90 123-45-67">' +
     locField + foot + "</div></div>";
 }
 
 // ---------- render
-function render() {
+function render() { render0(); if (S.lang === "ru") ruTree($app); }
+function render0() {
   if (!S.shop) return;
   const staff = isStaff();
   const v = S.view;
@@ -737,19 +762,19 @@ function render() {
   if (v === "home") {
     if (S.done) { head = hdHome(); body = viewDone(); act = '<button class="primary" data-a="close-app">' + t("close") + '</button><button class="primary" data-a="view" data-v="mine">' + t("my_bookings") + "</button>"; }
     else if (S.step === 1) { head = hdHome(); body = viewBranches(); pct = 15; }
-    else if (S.step === 2) { head = hdSub(S.branch.name, "back"); body = viewBarbers(); pct = 30; }
+    else if (S.step === 2) { head = hdSub(nm(S.branch), "back"); body = viewBarbers(); pct = 30; }
     else if (S.step === 3) {
-      const T = totals(); head = hdSub(S.barber.name, "back"); body = viewServices(); pct = 45;
+      const T = totals(); head = hdSub(nm(S.barber), "back"); body = viewServices(); pct = 45;
       act = T.p.length ? '<div class="sum">' + money(T.price) + "<small>" + t("minutes", {n: T.min}) + " · " + t("svc_n", {n: T.p.length}) + "</small></div>" : "";
       act += '<button class="primary" data-a="to-cal"' + (T.p.length ? "" : " disabled") + ">" + t("next") + "</button>";
     }
-    else if (S.step === 4) { head = hdSub(S.barber.name, "back"); body = viewCalendar(); pct = 60; }
+    else if (S.step === 4) { head = hdSub(nm(S.barber), "back"); body = viewCalendar(); pct = 60; }
     else if (S.step === 5) {
-      head = hdSub(S.barber.name, "back"); body = viewTime(); pct = 75;
-      act = (S.slot ? '<div class="sum">' + shortDate(S.date) + ", " + S.slot.slice(11, 16) + " – " + endTime() + "<small>" + esc(S.barber.name) + " · " + t("minutes", {n: totals().min}) + "</small></div>" : "") + '<button class="primary" data-a="to-confirm"' + (S.slot ? "" : " disabled") + ">" + t("next") + "</button>";
+      head = hdSub(nm(S.barber), "back"); body = viewTime(); pct = 75;
+      act = (S.slot ? '<div class="sum">' + shortDate(S.date) + ", " + S.slot.slice(11, 16) + " – " + endTime() + "<small>" + esc(nm(S.barber)) + " · " + t("minutes", {n: totals().min}) + "</small></div>" : "") + '<button class="primary" data-a="to-confirm"' + (S.slot ? "" : " disabled") + ">" + t("next") + "</button>";
     }
     else { head = hdSub(t("contact"), "back"); body = viewConfirm(); pct = 90; act = '<button class="primary" id="b-ok" data-a="confirm"' + (phoneOk() ? "" : " disabled") + ">" + t("book_btn") + "</button>"; }
-  } else if (v === "info") { head = hdSub(t("about", {name: S.shop.name}), "go-home"); body = viewInfo(); }
+  } else if (v === "info") { head = hdSub(t("about", {name: nm(S.shop)}), "go-home"); body = viewInfo(); }
   else if (v === "mine") { head = hdSub(t("my_bookings"), "go-home"); body = viewMine(); }
   else if (v === "sched") { head = hdStaff(); body = viewSched(); }
   else if (v === "report") { head = hdStaff(); body = viewReport(); }
@@ -880,7 +905,7 @@ const H = {
     try {
       const T = totals();
       await api("/api/bookings", {method: "POST", body: {barber_id: S.barber.id, service_ids: S.picked, start_at: S.slot, phone: S.phone || (S.me && S.me.phone) || null}});
-      S.done = {names: T.p.map(x => x.name).join(", "), price: T.price, min: T.min, barber: S.barber.name, date: S.slot.slice(0, 10), time: S.slot.slice(11, 16), branch: S.branch};
+      S.done = {names: T.p.map(x => nm(x)).join(", "), price: T.price, min: T.min, barber: nm(S.barber), date: S.slot.slice(0, 10), time: S.slot.slice(11, 16), branch: S.branch};
       S.mine = {active: null, history: null}; haptic("success"); render(); window.scrollTo(0, 0);
     } catch (e) {
       toast(errText(e), true); haptic("error");
@@ -922,7 +947,7 @@ const H = {
     const price = parseInt(document.getElementById("f-price").value, 10);
     const dur = parseInt(document.getElementById("f-dur").value, 10);
     if (!name || !(price >= 0) || !(dur > 0)) { toast("Nom, narx va davomiylikni to'ldiring", true); return; }
-    const body = {name, price, duration_min: dur};
+    const body = {name, name_ru: (document.getElementById("f-name-ru").value || "").trim(), price, duration_min: dur};
     if (!S.modal.data) body.barber_id = S.modal.barberId;
     try {
       if (S.modal.data) await api("/api/admin/services/" + S.modal.data.id, {method: "PATCH", body});
@@ -945,8 +970,8 @@ const H = {
     const m = S.modal, name = document.getElementById("f-name").value.trim(), branch_id = Number(document.getElementById("f-br").value);
     if (!name || !branch_id) { toast("Ism va filialni kiriting", true); return; }
     try {
-      const br = m.data ? await api("/api/admin/barbers/" + m.data.id, {method: "PATCH", body: {name, branch_id}})
-                        : await api("/api/admin/barbers", {method: "POST", body: {name, branch_id}});
+      const br = m.data ? await api("/api/admin/barbers/" + m.data.id, {method: "PATCH", body: {name, branch_id, name_ru: (document.getElementById("f-name-ru").value || "").trim()}})
+                        : await api("/api/admin/barbers", {method: "POST", body: {name, branch_id, name_ru: (document.getElementById("f-name-ru").value || "").trim()}});
       if (m.pending) await api("/api/admin/barbers/" + br.id + "/photo", {method: "PUT", body: {data: m.pending}});
       S.modal = null; toast("Saqlandi"); refreshPublic(); loadSettings();
     } catch (e) { toast(errText(e), true); }
@@ -978,7 +1003,7 @@ const H = {
     const loc = parseCoords(document.getElementById("f-loc").value);
     if (!name) { toast("Filial nomini kiriting", true); return; }
     if (loc === null) { toast("Lokatsiya tushunarsiz. Koordinata yoki to'liq xarita havolasini kiriting.", true); return; }
-    const body = {name, address: address || null, lat: loc.empty ? null : loc.lat, lng: loc.empty ? null : loc.lng};
+    const body = {name, name_ru: (document.getElementById("f-name-ru").value || "").trim() || null, address_ru: (document.getElementById("f-addr-ru").value || "").trim() || null, address: address || null, lat: loc.empty ? null : loc.lat, lng: loc.empty ? null : loc.lng};
     try {
       const br = m.data ? await api("/api/admin/branches/" + m.data.id, {method: "PATCH", body})
                         : await api("/api/admin/branches", {method: "POST", body});
@@ -1002,7 +1027,8 @@ const H = {
     if (!name) { toast("Nomini kiriting", true); return; }
     if (loc === null) { toast("Lokatsiya tushunarsiz. Koordinata yoki to'liq xarita havolasini kiriting.", true); return; }
     const body = {
-      name, desc_uz: document.getElementById("f-uz").value.trim() || null, desc_ru: document.getElementById("f-ru").value.trim() || null,
+      name, name_ru: (document.getElementById("f-name-ru").value || "").trim() || null, address_ru: (document.getElementById("f-addr-ru").value || "").trim() || null,
+      desc_uz: document.getElementById("f-uz").value.trim() || null, desc_ru: document.getElementById("f-ru").value.trim() || null,
       address: document.getElementById("f-addr").value.trim() || null, phone: document.getElementById("f-phone").value.trim() || null,
       lat: loc.empty ? null : loc.lat, lng: loc.empty ? null : loc.lng,
     };
@@ -1100,7 +1126,7 @@ async function boot() {
   }
   clearTimeout(slow);
   applyTheme();
-  document.title = S.shop.name;
+  document.title = nm(S.shop);
   S.view = isStaff() ? "sched" : "home";
   if (S.view === "sched") loadSched(); else render();
 }
