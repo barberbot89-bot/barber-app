@@ -45,12 +45,15 @@ input{width:100%;height:48px;border:1px solid var(--line);border-radius:12px;pad
 a{color:var(--blue);font-weight:600;text-decoration:none}
 .center{text-align:center;padding:90px 0}.empty{text-align:center;color:var(--mute);padding:30px 0}
 #toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:var(--ink);color:var(--on);padding:10px 16px;border-radius:12px;z-index:20;max-width:88%;display:none}#toast.er{background:var(--red);color:#fff}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;display:flex;align-items:flex-end;justify-content:center}.mc{background:var(--bg);width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}.mc label{display:block;margin:10px 0 4px;font-size:14px;color:var(--mute)}
+select{width:100%;height:48px;border:1px solid var(--line);border-radius:12px;padding:0 10px;background:var(--card);color:var(--ink)}
+.nav button{font-size:11px}
 </style>
 </head>
 <body>
 <div id="app"></div><div id="toast"></div>
 <script>
-const API_BASE = "https://barber-app-6ucr.onrender.com"; // Render manzili
+const API_BASE = "https://YOUR-SERVICE.onrender.com"; // Render manzili
 const TZ = "Asia/Tashkent", tg = window.Telegram && Telegram.WebApp;
 const T = {
 uz:{book:"Yozilish",mine:"Yozuvlarim",sched:"Jadval",branch:"Filialni tanlang",barber:"Ustani tanlang",svc:"Xizmatlar",when:"Sana va vaqt",phone:"Telefon raqamingiz",next:"Davom etish",confirm:"Yozilish",from:"dan",min:"daqiqa",sum:"so'm",
@@ -87,9 +90,9 @@ async function api(path, o = {}) {
 const q = o => new URLSearchParams(o).toString();
 
 // ---------- views
-const header = () => `<div class="hd"><b>${esc(nm(S.shop))}</b><div class="row"><button class="ib" data-a="theme">◐</button><button class="ib" data-a="lang">${S.lang.toUpperCase()}</button></div></div>`;
-const nav = () => isStaff() && S.me.role !== "barber-x" ? `<div class="nav"><div><button class="${S.view === "sched" ? "on" : ""}" data-a="view" data-v="sched">📅 ${t("sched")}</button><button class="${S.view === "book" ? "on" : ""}" data-a="view" data-v="book">✂️ ${t("book")}</button><button class="${S.view === "mine" ? "on" : ""}" data-a="view" data-v="mine">🗂 ${t("mine")}</button></div></div>`
-  : `<div class="nav"><div><button class="${S.view === "book" ? "on" : ""}" data-a="view" data-v="book">✂️ ${t("book")}</button><button class="${S.view === "mine" ? "on" : ""}" data-a="view" data-v="mine">🗂 ${t("mine")}</button></div></div>`;
+const header = () => `<div class="hd"><div class="row" style="justify-content:flex-start;min-width:0">${S.shop.logo_url ? `<img class="av" style="width:36px;height:36px" src="${API_BASE + S.shop.logo_url}">` : ""}<b>${esc(nm(S.shop))}</b></div><div class="row"><button class="ib" data-a="theme">◐</button><button class="ib" data-a="lang">${S.lang.toUpperCase()}</button></div></div>`;
+const nav = () => { const tb = (v, l) => `<button class="${S.view === v ? "on" : ""}" data-a="view" data-v="${v}">${l}</button>`;
+  return `<div class="nav"><div>${(isStaff() ? tb("sched", "📅 " + t("sched")) + tb("rep", "📊 " + t("rep")) : "") + tb("book", "✂️ " + t("book")) + tb("mine", "🗂 " + t("mine")) + (isStaff() ? tb("set", "⚙️ " + t("set")) : "")}</div></div>`; };
 const act = (label, a, dis, back) => `<div class="act ${back === 0 ? "nn" : ""}"><div>${back ? `<button class="ghost" data-a="back">←</button>` : ""}<button class="pri" id="b-ok" data-a="${a}" ${dis ? "disabled" : ""}>${label}</button></div></div>`;
 const av = o => o.photo_url ? `<img class="av" src="${API_BASE + o.photo_url}">` : `<div class="av">${esc(nm(o)[0] || "?")}</div>`;
 
@@ -97,12 +100,14 @@ function render() {
   let h = header();
   if (S.view === "book") h += bookView();
   else if (S.view === "mine") h += mineView();
+  else if (S.view === "rep") h += repView();
+  else if (S.view === "set") h += setView();
   else h += schedView();
-  $a.innerHTML = h + nav();
+  $a.innerHTML = h + nav() + modalView();
 }
 
 function bookView() {
-  const steps = 5, bar = `<div class="bar"><i style="width:${S.step / steps * 100}%"></i></div>`;
+  const steps = 5, sh = S.shop, info = (S.step < 3 && (sh.desc_uz || sh.desc_ru || sh.phone)) ? `<p class="sub">${esc((S.lang === "ru" && sh.desc_ru) || sh.desc_uz || "")} ${sh.phone ? `<a href="tel:${esc(sh.phone)}">${esc(sh.phone)}</a>` : ""}</p>` : "", bar = `<div class="bar"><i style="width:${S.step / steps * 100}%"></i></div>` + info;
   if (S.step === 1) {
     if (S.branches.length === 1 && !S.branch) { S.branch = S.branches[0]; S.step = 2; return bookView(); }
     return bar + `<h1>${t("branch")}</h1>` + S.branches.map(b => `<button class="card" data-a="branch" data-id="${b.id}">${b.photo_url ? `<img src="${API_BASE + b.photo_url}">` : ""}<b>${esc(nm(b))}</b><div class="mute">${esc(nm(b, "address"))}</div></button>`).join("");
@@ -218,6 +223,132 @@ async function boot() {
   S.step = S.branch ? 2 : 1;
   if (isStaff()) { S.view = "sched"; loadSched(); } else render();
 }
+// ===== admin: report / settings
+Object.assign(T.uz,{rep:"Hisobot",set:"Sozlamalar",barbers:"Ustalar",hours:"Ish vaqti",shop:"Do'kon",branches:"Filiallar",save:"Saqlash",add:"+ Qo'shish",edit:"Tahrir",name:"Nomi (uz)",name_ru:"Nomi (ru)",price:"Narx",dur:"Davomiyligi (daqiqa)",addr:"Manzil (uz)",addr_ru:"Manzil (ru)",desc_uz:"Tavsif (uz)",desc_ru:"Tavsif (ru)",ph:"Telefon",loc:"Lokatsiya (41.31, 69.24 yoki xarita havolasi)",photo:"Rasm",day:"Bugun",month:"Oy",rev:"Daromad",off:"Dam olish kunlari",inv:"Havola yaratish",copy:"Nusxalash",share:"Yuborish",unl:"Ajratish",rm:"O'chirish",on:"Faol",offl:"Faol emas",wd:["Du","Se","Ch","Pa","Ju","Sh","Ya"],ok2:"Saqlandi",lnk:"Telegramga ulash",cl:"Yopish",req:"To'ldiring: nomi, narx, davomiylik",badloc:"Lokatsiya tushunarsiz",big:"Rasm juda katta",hrerr:"Boshlanish tugashdan oldin bo'lsin",who:"Usta",dayoff:"Dam",linked:"Telegramga ulangan",sure2:"O'chiramizmi?",copied:"Nusxalandi",admins:"Adminlar"});
+Object.assign(T.ru,{rep:"Отчёт",set:"Настройки",barbers:"Мастера",hours:"Часы работы",shop:"Магазин",branches:"Филиалы",save:"Сохранить",add:"+ Добавить",edit:"Изменить",name:"Название (uz)",name_ru:"Название (ru)",price:"Цена",dur:"Длительность (мин)",addr:"Адрес (uz)",addr_ru:"Адрес (ru)",desc_uz:"Описание (uz)",desc_ru:"Описание (ru)",ph:"Телефон",loc:"Локация (41.31, 69.24 или ссылка на карту)",photo:"Фото",day:"Сегодня",month:"Месяц",rev:"Доход",off:"Выходные дни",inv:"Создать ссылку",copy:"Копировать",share:"Отправить",unl:"Отвязать",rm:"Удалить",on:"Активен",offl:"Отключён",wd:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"],ok2:"Сохранено",lnk:"Привязать к Telegram",cl:"Закрыть",req:"Заполните: название, цена, длительность",badloc:"Локация непонятна",big:"Фото слишком большое",hrerr:"Начало должно быть раньше конца",who:"Мастер",dayoff:"Выходной",linked:"Привязан к Telegram",sure2:"Удалить?",copied:"Скопировано",admins:"Админы"});
+const full = () => ["owner", "admin"].includes(S.me.role);
+const bname = id => { const b = (S.d && S.d.bar || S.barbers).find(x => x.id === id); return b ? nm(b) : ""; };
+const pills = (arr, cur, a) => `<div class="strip">${arr.map(([k, l]) => `<button class="chip ${cur === k ? "on" : ""}" style="width:auto;padding:8px 14px" data-a="${a}" data-k="${k}">${esc(l)}</button>`).join("")}</div>`;
+const f2d = (f, max, mime, qq) => new Promise((ok, no) => { const im = new Image(), u = URL.createObjectURL(f); im.onload = () => { const k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement("canvas"); c.width = im.width * k; c.height = im.height * k; c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c.toDataURL(mime, qq)); }; im.onerror = no; im.src = u; });
+function parseLoc(s) { s = (s || "").trim(); if (!s) return {empty: 1}; const m = s.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/) || s.match(/(-?\d+\.\d+)\s*[,; ]\s*(-?\d+\.\d+)/); return m ? {lat: +m[1], lng: +m[2]} : null; }
+async function refreshPub() { try { const b = await api("/api/bootstrap"); Object.assign(S, {shop: b.shop, branches: b.branches, barbers: b.barbers || [], services: b.services}); } catch (e) {} }
+
+function repView() {
+  const r = S.rep, seg = `<div class="seg"><button class="${S.rp === "day" ? "on" : ""}" data-a="rp" data-k="day">${t("day")}</button><button class="${S.rp === "month" ? "on" : ""}" data-a="rp" data-k="month">${t("month")}</button></div>`;
+  if (!r) return `<h1>${t("rep")}</h1>${seg}<div class="empty">${t("loading")}</div>`;
+  return `<h1>${t("rep")}</h1>${seg}<div class="card"><div class="mute">${t("rev")}</div><div class="t" style="font-size:34px">${money(r.revenue)}</div></div>
+  <div class="card">${["pending", "booked", "done", "no_show", "cancelled"].map(k => `<div class="row"><span>${t("st")[k]}</span><b>${r.counts[k] || 0}</b></div>`).join("")}</div>`
+  + (r.by_service.length ? `<div class="card">${r.by_service.map(x => `<div class="row"><span>${esc(x.name)}</span><b>${x.count}</b></div>`).join("")}</div>` : "")
+  + r.by_barber.map(x => `<div class="card"><b>✂️ ${esc(nm(x))}</b><div class="mute">${t("st").booked}: ${x.booked} · ${t("st").done}: ${x.done} · ${t("st").no_show}: ${x.no_show} · ${t("st").cancelled}: ${x.cancelled}</div><div>${money(x.revenue)}</div></div>`).join("");
+}
+async function loadRep() { S.rp = S.rp || "day"; S.rep = undefined; render(); try { S.rep = await api("/api/admin/report?" + q({period: S.rp})); } catch (e) { toast(errText(e), true); S.rep = {revenue: 0, counts: {}, by_service: [], by_barber: []}; } render(); }
+
+function setView() {
+  const tab = S.tab || "svc", d = S.d || {}, L = d[tab];
+  const tabs = [["svc", t("svc")], ["bar", t("barbers")], ["hrs", t("hours")]].concat(full() ? [["shop", t("shop")], ["br", t("branches")]] : []).concat(S.me.role === "owner" ? [["adm", t("admins")]] : []);
+  const add = ty => `<button class="pri" style="width:100%;margin-bottom:10px" data-a="fe" data-t="${ty}">${t("add")}</button>`;
+  let b = L === undefined ? `<div class="empty">${t("loading")}</div>` : "";
+  if (L !== undefined) {
+    if (tab === "svc") b = add("svc") + L.map(x => `<div class="card"><div class="row"><b>${esc(nm(x))}</b><b>${money(x.price)}</b></div><div class="mute">${x.duration_min} ${t("min")}${full() ? " · " + esc(bname(x.barber_id)) : ""}</div><div class="btns"><button class="sm" data-a="fe" data-t="svc" data-id="${x.id}">${t("edit")}</button><button class="sm ${x.active ? "ok" : "no"}" data-a="tg" data-t="svc" data-id="${x.id}">${x.active ? t("on") : t("offl")}</button></div></div>`).join("");
+    else if (tab === "bar") b = (S.me.role === "owner" || S.me.role === "admin" ? add("bar") : "") + L.map(x => `<div class="card"><div class="row" style="justify-content:flex-start">${av(x)}<div><b>${esc(nm(x))}</b><div class="mute">${esc(nm((S.adminBranches || []).find(y => y.id === x.branch_id) || {}))}${x.linked ? " · ✅ " + t("linked") : ""}</div></div></div><div class="btns"><button class="sm" data-a="fe" data-t="bar" data-id="${x.id}">${t("edit")}</button><button class="sm" data-a="doff" data-id="${x.id}">${t("off")}</button>${full() ? `<button class="sm ${x.active ? "ok" : "no"}" data-a="tg" data-t="bar" data-id="${x.id}">${x.active ? t("on") : t("offl")}</button>` : ""}${S.me.role === "owner" ? (x.linked ? `<button class="sm no" data-a="unl" data-id="${x.id}">${t("unl")}</button>` : `<button class="sm" data-a="binv" data-id="${x.id}">${t("lnk")}</button>`) : ""}</div></div>`).join("");
+    else if (tab === "hrs") {
+      const bs = S.hbs || [], rows = [...Array(7)].map((_, i) => L.find(r => r.weekday === i) || {weekday: i, is_off: true});
+      b = `<select id="f-hb">${bs.map(x => `<option value="${x.id}" ${x.id == S.hb ? "selected" : ""}>${esc(nm(x))}</option>`).join("")}</select><div style="height:10px"></div>` + rows.map(r => { const i = r.weekday, dis = full() ? "" : "disabled"; return `<div class="card"><div class="row"><b>${t("wd")[i]}</b><label><input type="checkbox" style="width:auto;height:auto" data-h="${i}" data-f="off" ${r.is_off ? "checked" : ""} ${dis}> ${t("dayoff")}</label></div>${r.is_off ? "" : `<div class="row"><input type="time" style="width:48%" data-h="${i}" data-f="start" value="${(r.start_time || "").slice(0, 5)}" ${dis}><input type="time" style="width:48%" data-h="${i}" data-f="end" value="${(r.end_time || "").slice(0, 5)}" ${dis}></div>`}</div>`; }).join("");
+    } else if (tab === "shop") { const s = L[0] || {}; b = `<div class="card">${s.logo_url ? `<img src="${API_BASE + s.logo_url}" style="max-width:96px;aspect-ratio:1">` : ""}<b>${esc(nm(s))}</b><div class="mute">${esc(s.address || "")} ${esc(s.phone || "")}</div><div>${esc(s.desc_uz || "")}</div><div class="btns"><button class="sm" data-a="fe" data-t="shop">${t("edit")}</button></div></div>`; }
+    else if (tab === "br") b = add("br") + L.map(x => `<div class="card">${x.photo_url ? `<img src="${API_BASE + x.photo_url}">` : ""}<b>${esc(nm(x))}</b><div class="mute">${esc(nm(x, "address"))}</div><div class="btns"><button class="sm" data-a="fe" data-t="br" data-id="${x.id}">${t("edit")}</button><button class="sm ${x.active ? "ok" : "no"}" data-a="tg" data-t="br" data-id="${x.id}">${x.active ? t("on") : t("offl")}</button></div></div>`).join("");
+    else if (tab === "adm") b = `<button class="pri" style="width:100%;margin-bottom:10px" data-a="ainv">${t("inv")}</button>` + L.map(x => `<div class="card row"><div><b>${esc(x.name || x.telegram_id)}</b><div class="mute">${esc(x.phone || "")}</div></div><button class="sm no" data-a="radm" data-id="${x.telegram_id}">${t("rm")}</button></div>`).join("");
+  }
+  return `<h1>${t("set")}</h1>${pills(tabs, tab, "stab")}${b}`;
+}
+async function loadTab() {
+  const tab = S.tab || "svc"; S.d = S.d || {}; S.d[tab] = undefined; render();
+  try {
+    if (full() && !S.adminBranches) S.adminBranches = await api("/api/admin/branches");
+    if (!S.adminBranches) S.adminBranches = S.branches;
+    if (tab === "svc") { S.d.bar = await api("/api/admin/barbers"); S.d.svc = await api("/api/admin/services"); }
+    else if (tab === "bar") S.d.bar = await api("/api/admin/barbers");
+    else if (tab === "hrs") { S.hbs = full() ? S.adminBranches : S.branches.filter(x => S.barbers.some(y => S.me.barber_ids.includes(y.id) && y.branch_id === x.id)); S.hb = S.hb && S.hbs.some(x => x.id == S.hb) ? S.hb : (S.hbs[0] || {}).id; S.d.hrs = S.hb ? await api("/api/admin/work-hours?" + q({branch_id: S.hb})) : []; }
+    else if (tab === "shop") S.d.shop = [await api("/api/admin/shop")];
+    else if (tab === "br") { S.adminBranches = await api("/api/admin/branches"); S.d.br = S.adminBranches; }
+    else if (tab === "adm") S.d.adm = await api("/api/admin/admins");
+  } catch (e) { toast(errText(e), true); S.d[tab] = []; }
+  render();
+}
+
+const FM = {svc: [["name", "name"], ["name_ru", "name_ru"], ["price", "price", "n"], ["duration_min", "dur", "n"]], bar: [["name", "name"], ["name_ru", "name_ru"]],
+  shop: [["name", "name"], ["name_ru", "name_ru"], ["desc_uz", "desc_uz"], ["desc_ru", "desc_ru"], ["address", "addr"], ["address_ru", "addr_ru"], ["phone", "ph"], ["loc", "loc"]],
+  br: [["name", "name"], ["name_ru", "name_ru"], ["address", "addr"], ["address_ru", "addr_ru"], ["loc", "loc"]]};
+const EP = {svc: "/api/admin/services", bar: "/api/admin/barbers", br: "/api/admin/branches"};
+function modalView() {
+  const m = S.modal; if (!m) return "";
+  let b = "";
+  if (m.type === "link") b = `<input readonly id="f-lnk" value="${esc(m.link)}"><div class="btns"><button class="sm" data-a="copy">${t("copy")}</button><button class="sm" data-a="shr">${t("share")}</button></div>`;
+  else if (m.type === "days") b = `<h2 style="margin:0 0 10px">${t("off")}</h2><div class="slots">${[...Array(30)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() + i); const k = ymd(d); return `<button class="slot ${m.off.has(k) ? "on" : ""}" data-a="dtog" data-d="${k}">${d.getDate()}.${d.getMonth() + 1}</button>`; }).join("")}</div>`;
+  else {
+    const ds = m.data || {};
+    b = FM[m.type].map(([k, l, ty]) => `<label>${t(l)}</label><input id="f-${k}" ${ty === "n" ? 'type="number" inputmode="numeric"' : ""} value="${esc(k === "loc" ? (ds.lat != null ? ds.lat + ", " + ds.lng : "") : (ds[k] ?? ""))}">`).join("");
+    if (m.type === "svc" && full() && !m.data) b += `<label>${t("who")}</label><select id="f-barber_id">${(S.d.bar || []).map(x => `<option value="${x.id}">${esc(nm(x))}</option>`).join("")}</select>`;
+    if (m.type === "bar" && full()) b += `<label>${t("branches")}</label><select id="f-branch_id">${(S.adminBranches || []).map(x => `<option value="${x.id}" ${x.id === ds.branch_id ? "selected" : ""}>${esc(nm(x))}</option>`).join("")}</select>`;
+    if (m.type !== "svc") b += `<label>${t("photo")}</label><input type="file" accept="image/*" data-file="${m.type === "shop" ? "logo" : "p"}"><img id="f-prev" style="display:none;max-width:120px;margin-top:8px">`;
+    b += `<button class="pri" style="width:100%;margin-top:14px" data-a="fsave">${t("save")}</button>`;
+  }
+  return `<div class="mo"><div class="mc">${b}<button class="ghost" style="width:100%;margin-top:10px;text-align:center" data-a="mx">${t("cl")}</button></div></div>`;
+}
+
+Object.assign(H, {
+  rp: d => { S.rp = d.k; loadRep(); },
+  stab: d => { S.tab = d.k; loadTab(); },
+  fe: d => { const L = S.d[d.t === "br" ? "br" : d.t] || []; S.modal = {type: d.t, data: d.id ? L.find(x => x.id == d.id) : d.t === "shop" ? S.d.shop[0] : null, pending: null}; render(); },
+  mx: () => { S.modal = null; render(); },
+  tg: async d => { const x = S.d[d.t].find(y => y.id == d.id); try { await api(EP[d.t] + "/" + x.id, {method: "PATCH", body: {active: !x.active}}); await refreshPub(); loadTab(); } catch (e) { toast(errText(e), true); } },
+  fsave: async () => {
+    const m = S.modal, ty = m.type, g = k => { const e = document.getElementById("f-" + k); return e ? e.value.trim() : undefined; }, body = {};
+    FM[ty].forEach(([k, , n]) => { if (k === "loc") return; const v = g(k); body[k] = n ? (v === "" ? null : Number(v)) : (v || null); });
+    if (!body.name || (ty === "svc" && (!body.price || !body.duration_min))) { toast(t("req"), true); return; }
+    if (FM[ty].some(f => f[0] === "loc")) { const l = parseLoc(g("loc")); if (l === null) { toast(t("badloc"), true); return; } body.lat = l.empty ? null : l.lat; body.lng = l.empty ? null : l.lng; }
+    if (g("barber_id")) body.barber_id = Number(g("barber_id"));
+    if (g("branch_id")) body.branch_id = Number(g("branch_id"));
+    const id = m.data && m.data.id;
+    try {
+      const r = ty === "shop" ? await api("/api/admin/shop", {method: "PATCH", body}) : await api(id ? EP[ty] + "/" + id : EP[ty], {method: id ? "PATCH" : "POST", body});
+      if (m.pending) await api(ty === "shop" ? "/api/admin/shop/logo" : EP[ty] + "/" + r.id + "/photo", {method: "PUT", body: {data: m.pending}});
+      S.modal = null; toast(t("ok2")); await refreshPub(); loadTab();
+    } catch (e) { toast(errText(e), true); }
+  },
+  doff: async d => { try { const r = await api("/api/admin/days-off?" + q({barber_id: d.id})); S.modal = {type: "days", bid: Number(d.id), off: new Set(r.map(x => x.day))}; render(); } catch (e) { toast(errText(e), true); } },
+  dtog: async d => { const m = S.modal, on = !m.off.has(d.d); try { await api("/api/admin/days-off", {method: "POST", body: {barber_id: m.bid, day: d.d, off: on}}); on ? m.off.add(d.d) : m.off.delete(d.d); render(); } catch (e) { toast(errText(e), true); } },
+  binv: async d => { try { const r = await api("/api/admin/barbers/" + d.id + "/invite", {method: "POST"}); S.modal = {type: "link", link: r.link}; render(); } catch (e) { toast(errText(e), true); } },
+  unl: async d => { if (!(await ask(t("sure2")))) return; try { await api("/api/admin/barbers/" + d.id + "/telegram", {method: "DELETE"}); loadTab(); } catch (e) { toast(errText(e), true); } },
+  ainv: async () => { try { const r = await api("/api/admin/invite", {method: "POST"}); S.modal = {type: "link", link: r.link}; render(); } catch (e) { toast(errText(e), true); } },
+  radm: async d => { if (!(await ask(t("sure2")))) return; try { await api("/api/admin/admins/" + d.id, {method: "DELETE"}); loadTab(); } catch (e) { toast(errText(e), true); } },
+  copy: async () => { try { await navigator.clipboard.writeText(S.modal.link); toast(t("copied")); } catch (e) { document.getElementById("f-lnk").select(); } },
+  shr: () => { const u = "https://t.me/share/url?url=" + encodeURIComponent(S.modal.link); tg && tg.openTelegramLink ? tg.openTelegramLink(u) : window.open(u, "_blank"); },
+});
+const _view = H.view;
+H.view = d => { if (d.v === "rep") { S.view = "rep"; loadRep(); } else if (d.v === "set") { S.view = "set"; S.tab = S.tab || "svc"; loadTab(); } else _view(d); };
+
+document.addEventListener("change", async e => {
+  const el = e.target;
+  if (el.id === "f-hb") { S.hb = el.value; loadTab(); return; }
+  if (el.dataset.file) {
+    const f = el.files && el.files[0]; if (!f || !S.modal) return;
+    try { const logo = el.dataset.file === "logo", data = await f2d(f, logo ? 256 : 900, logo ? "image/png" : "image/jpeg", 0.78);
+      if (data.length > 850000) { toast(t("big"), true); return; }
+      S.modal.pending = data; const p = document.getElementById("f-prev"); p.src = data; p.style.display = "block"; } catch (err) { toast("Rasm xato", true); }
+    return;
+  }
+  if (el.dataset.h === undefined) return;
+  const i = Number(el.dataset.h), g = f => document.querySelector(`[data-h="${i}"][data-f="${f}"]`);
+  const off = g("off").checked, st = g("start") ? g("start").value : "09:00", en = g("end") ? g("end").value : "20:00";
+  if (!off && (!st || !en || st >= en)) { toast(t("hrerr"), true); return; }
+  try {
+    await api("/api/admin/work-hours/" + S.hb + "/" + i, {method: "PUT", body: off ? {is_off: true} : {is_off: false, start_time: st, end_time: en}});
+    const row = S.d.hrs.find(x => x.weekday === i), v = {weekday: i, is_off: off, start_time: off ? null : st, end_time: off ? null : en};
+    row ? Object.assign(row, v) : S.d.hrs.push(v);
+    toast(t("ok2")); render();
+  } catch (err) { toast(errText(err), true); }
+});
+
 boot();
 </script>
 </body>
