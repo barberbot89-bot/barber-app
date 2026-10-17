@@ -182,7 +182,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -293,7 +293,9 @@ const errText = e => {
   const k = "err_" + e.message;
   return (I18N[S.lang] && I18N[S.lang][k]) || I18N.uz[k] || e.message;
 };
-const isStaff = () => S.me && (S.me.role === "owner" || S.me.role === "admin");
+const isFull = () => !!(S.me && (S.me.role === "owner" || S.me.role === "admin"));
+const isBarber = () => !!(S.me && !isFull() && S.me.barber);
+const isStaff = () => isFull() || isBarber();
 const isOwner = () => S.me && S.me.role === "owner";
 
 // ---------- helpers
@@ -622,6 +624,7 @@ function viewSettings() {
   const sumUz = " so'm";
   let h = "<h1>Sozlamalar</h1>";
 
+  if (isFull()) {
   h += "<h2>Do'kon ma'lumotlari</h2>";
   h += '<div class="card"><div class="row">' + logoHtml() +
     '<div style="min-width:0"><b>' + esc(nm(sh)) + "</b>" +
@@ -643,7 +646,9 @@ function viewSettings() {
     h += '<button class="ghost" style="width:100%" data-a="add-branch">+ Filial qo\'shish</button>';
   }
 
-  h += "<h2>Ustalar</h2>";
+  }
+
+  h += isFull() ? "<h2>Ustalar</h2>" : "<h2>Mening ma'lumotlarim</h2>";
   if (S.adminBarbers === null || T.services === null) h += loading();
   else {
     h += S.adminBarbers.map(b => {
@@ -651,12 +656,12 @@ function viewSettings() {
       const sv = T.services.filter(x => x.barber_id === b.id);
       return '<div class="card"><div class="row">' + (b.photo_url ? '<img class="thumb" src="' + esc(imgSrc(b.photo_url)) + '" alt="">' : "") +
         '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + esc(br ? nm(br) : "") + "</div>" +
-        '<div class="muted">' + (b.linked ? "📲 Telegram ulangan ✅" : "📲 Telegram ulanmagan (xabar faqat egasiga boradi)") + "</div></div></div>" +
+        (isFull() ? '<div class="muted">' + (b.linked ? "📲 Telegram ulangan ✅" : "📲 Telegram ulanmagan (xabar faqat egasiga boradi)") + "</div>" : "") + "</div></div>" +
         '<div class="btns"><button class="small-btn" data-a="edit-barber" data-id="' + b.id + '">O\'zgartirish</button>' +
-        '<button class="small-btn" data-a="toggle-barber" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button>" +
+        (isFull() ? '<button class="small-btn" data-a="toggle-barber" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button>" : "") +
         '<button class="small-btn" data-a="off-days" data-id="' + b.id + '">Dam olish kunlari</button>' +
-        '<button class="small-btn" data-a="link-barber" data-id="' + b.id + '">' + (b.linked ? "Qayta ulash" : "Telegramga ulash") + "</button>" +
-        (b.linked ? '<button class="small-btn no" data-a="unlink-barber" data-id="' + b.id + '">Uzish</button>' : "") + "</div>" +
+        (isFull() ? '<button class="small-btn" data-a="link-barber" data-id="' + b.id + '">' + (b.linked ? "Qayta ulash" : "Telegramga ulash") + "</button>" : "") +
+        (isFull() && b.linked ? '<button class="small-btn no" data-a="unlink-barber" data-id="' + b.id + '">Uzish</button>' : "") + "</div>" +
         (T.binv && T.binv.id === b.id ? '<div class="linkbox-wrap"><div class="muted">Havolani ustaga yuboring. U bir marta ishlaydi.</div><div class="linkbox">' + esc(T.binv.link) + "</div>" +
           '<div class="btns"><button class="small-btn" data-a="copy-binv">Nusxalash</button><button class="small-btn" data-a="share-binv">Telegram orqali yuborish</button></div></div>' : "") +
         sv.map(x => '<div class="list-row"><span>' + esc(nm(x)) + (x.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + x.duration_min + " daqiqa · " + Number(x.price).toLocaleString("ru-RU") + sumUz + "</div></span>" +
@@ -664,9 +669,10 @@ function viewSettings() {
           '<button class="small-btn" data-a="toggle-service" data-id="' + x.id + '">' + (x.active ? "Yashirish" : "Ko'rsatish") + "</button></span></div>").join("") +
         '<button class="ghost" style="width:100%;margin-top:10px" data-a="add-service" data-b="' + b.id + '">+ Xizmat qo\'shish</button></div>';
     }).join("");
-    h += '<button class="ghost" style="width:100%" data-a="add-barber">+ Usta qo\'shish</button>';
+    if (isFull()) h += '<button class="ghost" style="width:100%" data-a="add-barber">+ Usta qo\'shish</button>';
   }
 
+  if (isFull()) {
   h += "<h2>Ish vaqti</h2>" + branchPills(T.hoursBranch, "hours-branch", false);
   if (T.hours === null) h += loading();
   else {
@@ -678,6 +684,8 @@ function viewSettings() {
         '<input type="time" data-h="' + i + '" data-f="end" value="' + en + '"' + (r.is_off ? " disabled" : "") + "></div>" +
         '<label><input type="checkbox" data-h="' + i + '" data-f="off"' + (r.is_off ? " checked" : "") + "> Dam olish kuni</label></div>";
     }).join("") + "</div>";
+  }
+
   }
 
   if (isOwner()) {
@@ -728,7 +736,7 @@ function modalHtml() {
     return '<div class="sheet"><div><h2 style="margin-top:0">' + (m.data ? "Ustani o'zgartirish" : "Yangi usta") + "</h2>" +
       '<label for="f-name">Ismi</label><input id="f-name" type="text" value="' + esc(d.name || "") + '">' +
       '<label for="f-name-ru">Ismi (ruscha)</label><input id="f-name-ru" type="text" value="' + esc(d.name_ru || "") + '">' +
-      '<label for="f-br">Filial</label><select id="f-br">' + opts + "</select>" + photoField("Rasm", d.photo_url, "photo") + foot + "</div></div>";
+      (isFull() ? '<label for="f-br">Filial</label><select id="f-br">' + opts + "</select>" : "") + photoField("Rasm", d.photo_url, "photo") + foot + "</div></div>";
   }
   if (m.type === "off") {
     const days = []; for (let i = 0; i <= 30; i++) days.push(ymd(i));
@@ -845,8 +853,10 @@ async function loadSettings() {
   try {
     const [sv, bs] = await Promise.all([api("/api/admin/services"), api("/api/admin/barbers"), refreshBranches()]);
     S.set.services = sv; S.adminBarbers = bs;
-    if (!S.adminBranches.some(b => b.id === S.set.hoursBranch)) S.set.hoursBranch = S.adminBranches.length ? S.adminBranches[0].id : 0;
-    S.set.hours = S.set.hoursBranch ? await api("/api/admin/work-hours?branch_id=" + S.set.hoursBranch) : [];
+    if (isFull()) {
+      if (!S.adminBranches.some(b => b.id === S.set.hoursBranch)) S.set.hoursBranch = S.adminBranches.length ? S.adminBranches[0].id : 0;
+      S.set.hours = S.set.hoursBranch ? await api("/api/admin/work-hours?branch_id=" + S.set.hoursBranch) : [];
+    } else S.set.hours = [];
     if (isOwner()) S.set.admins = await api("/api/admin/admins");
   } catch (e) {
     toast(errText(e), true);
@@ -972,7 +982,8 @@ const H = {
   },
   "edit-barber": d => { S.modal = {type: "barber", data: S.adminBarbers.find(b => b.id === Number(d.id)), pending: null}; render(); },
   "save-barber": async () => {
-    const m = S.modal, name = document.getElementById("f-name").value.trim(), branch_id = Number(document.getElementById("f-br").value);
+    const m = S.modal, name = document.getElementById("f-name").value.trim(), brEl = document.getElementById("f-br");
+    const branch_id = brEl ? Number(brEl.value) : (m.data ? m.data.branch_id : 0);
     if (!name || !branch_id) { toast("Ism va filialni kiriting", true); return; }
     try {
       const br = m.data ? await api("/api/admin/barbers/" + m.data.id, {method: "PATCH", body: {name, branch_id, name_ru: (document.getElementById("f-name-ru").value || "").trim()}})
