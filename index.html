@@ -119,6 +119,12 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 .seg button{flex:1;text-align:center;padding:9px 0;border-radius:10px;font-weight:600;color:var(--muted)}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
 .big{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:700;line-height:1}
+.up{color:var(--ok)}.down{color:var(--red)}.flat{color:var(--muted)}
+.axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.range{display:flex;gap:8px;align-items:flex-end;margin-bottom:10px}
+.range label{flex:1;font-size:13px;color:var(--muted)}
+.range input{display:block;width:100%;margin-top:4px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+.note{font-size:13px;color:var(--muted);margin:-4px 2px 10px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .grid2 .card{margin:0}
 .grid2 b{font-family:'Barlow Condensed',sans-serif;font-size:32px;line-height:1;display:block}
@@ -182,7 +188,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -267,7 +273,7 @@ const S = {
   view: "home", step: 1, branch: null, barber: null, picked: [], off: null, cal: null, hourOpen: null, slotInfo: null, phone: "", date: "", slots: null, slot: null, slotReq: 0, done: null,
   mineScope: "active", mine: {active: null, history: null},
   sched: {date: "", branch: 0, barber: 0, list: null},
-  report: {period: "day", branch: 0, barber: 0, data: null},
+  report: {period: "day", branch: 0, barber: 0, from: "", to: "", data: null},
   set: {services: null, hours: null, hoursBranch: 0, admins: null, invite: null},
   modal: null,
 };
@@ -608,22 +614,97 @@ function viewSched() {
   }).join("");
 }
 
+const addDays = (d, n) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+const dowOf = d => (new Date(d + "T00:00:00Z").getUTCDay() + 6) % 7;
+const monthEnd = d => new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)).toISOString().slice(0, 10);
+function reportRange() {
+  const R = S.report, today = ymd(0);
+  if (R.period === "week") { const st = addDays(today, -dowOf(today)); return {start: st, end: addDays(st, 6), ps: addDays(st, -7), pe: addDays(st, -1)}; }
+  if (R.period === "month") { const st = today.slice(0, 8) + "01", pe = addDays(st, -1); return {start: st, end: monthEnd(st), ps: pe.slice(0, 8) + "01", pe}; }
+  if (R.period === "custom") return {start: R.from, end: R.to, ps: "", pe: ""};
+  return {start: today, end: today, ps: addDays(today, -1), pe: addDays(today, -1)};
+}
+const dmy = d => d.slice(8, 10) + "." + d.slice(5, 7);
+const rsum = n => Number(n).toLocaleString("ru-RU") + " so'm";
+const rpct = p => p === null || p === undefined ? "—" : p + "%";
+const rlbl = (k, g) => g === "month" ? k.slice(5, 7) + "." + k.slice(0, 4) : dmy(k);
+
+function revChart(series, group) {
+  const max = Math.max(0, ...series.map(x => x.revenue));
+  if (!max) return '<div class="muted" style="text-align:center;padding:18px 0">Bu davrda tushum yo\'q</div>';
+  const W = 320, H = 110, n = series.length, gap = n > 40 ? 1 : 3, bw = Math.max(2, (W - gap * (n - 1)) / n);
+  let bars = "";
+  series.forEach((x, i) => {
+    const h = x.revenue ? Math.max(2, Math.round(x.revenue / max * H)) : 0;
+    bars += '<rect x="' + (i * (bw + gap)).toFixed(1) + '" y="' + (H - h) + '" width="' + bw.toFixed(1) + '" height="' + h +
+      '" rx="2" fill="var(--blue)"><title>' + rlbl(x.k, group) + ": " + rsum(x.revenue) + "</title></rect>";
+  });
+  return '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" preserveAspectRatio="none" style="display:block;height:110px">' + bars + "</svg>" +
+    '<div class="axis"><span>' + rlbl(series[0].k, group) + "</span><span>" + rlbl(series[n - 1].k, group) + "</span></div>";
+}
+
 function viewReport() {
   const R = S.report, d = R.data;
-  const sum = " so'm";
+  const per = [["day", "Bugun"], ["week", "Hafta"], ["month", "Oy"], ["custom", "Oraliq"]];
   let h = "<h1>Hisobot</h1>" + branchPills(R.branch, "report-branch", true) + barberPills(R.barber, "report-barber", R.branch) +
-    '<div class="seg"><button class="' + (R.period === "day" ? "on" : "") + '" data-a="period" data-p="day">Bugun</button>' +
-    '<button class="' + (R.period === "month" ? "on" : "") + '" data-a="period" data-p="month">Shu oy</button></div>';
+    '<div class="seg">' + per.map(x => '<button class="' + (R.period === x[0] ? "on" : "") + '" data-a="period" data-p="' + x[0] + '">' + x[1] + "</button>").join("") + "</div>";
+  if (R.period === "custom")
+    h += '<div class="range"><label>Dan<input type="date" id="r-from" value="' + esc(R.from) + '"></label>' +
+      '<label>Gacha<input type="date" id="r-to" value="' + esc(R.to) + '"></label>' +
+      '<button class="small-btn" data-a="report-range">Ko\'rsatish</button></div>';
   if (!d) return h + loading();
-  h += '<div class="card"><div class="muted">Tushum</div><div class="big">' + Number(d.revenue).toLocaleString("ru-RU") + sum + "</div></div>" +
-    '<div class="grid2">' +
+  if (d.error) return h + '<div class="card down">' + esc(d.error) + "</div>";
+
+  const c = d.compare, cls = c.diff > 0 ? "up" : c.diff < 0 ? "down" : "flat";
+  const sign = c.diff > 0 ? "+" : c.diff < 0 ? "−" : "";
+  h += '<div class="card"><div class="muted">Tushum · ' + dmy(d.range.start) + (d.range.days > 1 ? " – " + dmy(d.range.end) : "") + '</div>' +
+    '<div class="big">' + rsum(d.revenue) + "</div>" +
+    '<div style="margin-top:6px">O\'rtacha chek: <b>' + (d.avg_check === null ? "—" : rsum(d.avg_check)) + "</b></div></div>";
+
+  h += '<div class="card"><div class="muted">Oldingi davr bilan (' + dmy(c.prev_start) + (c.prev_start !== c.prev_end ? " – " + dmy(c.prev_end) : "") + ")</div>" +
+    '<div class="list-row"><span>Oldingi davr</span><b>' + rsum(c.previous) + "</b></div>" +
+    '<div class="list-row"><span>Farq</span><b class="' + cls + '">' + sign + rsum(Math.abs(c.diff)) + "</b></div>" +
+    '<div class="list-row"><span>O\'zgarish</span><b class="' + (c.pct === null ? "flat" : cls) + '">' +
+    (c.pct === null ? "—" : (c.pct > 0 ? "+" : c.pct < 0 ? "−" : "") + Math.abs(c.pct) + "%") + "</b></div>" +
+    (c.pct === null ? '<div class="note" style="margin:6px 0 0">' + (c.previous === 0 && c.current === 0 ? "Ikkala davrda ham tushum yo'q." : "Oldingi davrda tushum bo'lmagani uchun foiz hisoblanmaydi.") + "</div>" : "") +
+    "</div>";
+
+  h += '<div class="card"><div class="muted" style="margin-bottom:8px">Tushum dinamikasi' + (d.group === "month" ? " (oylar bo'yicha)" : "") + "</div>" + revChart(d.series, d.group) + "</div>";
+
+  h += '<div class="grid2">' +
     '<div class="card"><b>' + d.counts.done + '</b><span class="muted">Bajarildi</span></div>' +
-    '<div class="card"><b>' + d.counts.booked + '</b><span class="muted">Kutilmoqda</span></div>' +
+    '<div class="card"><b>' + d.upcoming + '</b><span class="muted">Kutilmoqda</span></div>' +
     '<div class="card"><b>' + d.counts.no_show + '</b><span class="muted">Kelmadi</span></div>' +
-    '<div class="card"><b>' + d.counts.cancelled + '</b><span class="muted">Bekor qilingan</span></div></div>';
+    '<div class="card"><b>' + d.counts.cancelled + '</b><span class="muted">Bekor qilingan</span></div></div>' +
+    '<div class="note">Kutilmoqda — hali bo\'lmagan bronlar. Ular tushumga kirmaydi.</div>';
+
+  const cu = d.customers;
+  h += "<h2>Mijozlar</h2>" +
+    '<div class="grid2">' +
+    '<div class="card"><b>' + cu.unique + '</b><span class="muted">Kelgan mijozlar</span></div>' +
+    '<div class="card"><b>' + cu.new + '</b><span class="muted">Yangi</span></div>' +
+    '<div class="card"><b>' + cu.returning + '</b><span class="muted">Qaytgan</span></div>' +
+    '<div class="card"><b>' + rpct(cu.returning_rate) + '</b><span class="muted">Qaytganlar ulushi</span></div></div>' +
+    '<div class="note">Yangi — do\'konda birinchi bajarilgan vizit shu davrda. Qaytgan — oldin ham bajarilgan vizit bo\'lgan. Ma\'lumot ilova ishga tushgandan beri hisoblanadi.</div>';
+  if (d.top_customers.length)
+    h += '<div class="card"><div class="muted" style="margin-bottom:6px">Eng ko\'p kelganlar</div>' +
+      d.top_customers.map(x => '<div class="list-row"><span>' + esc(x.name) + '</span><b>' + x.visits + " ta · " + rsum(x.revenue) + "</b></div>").join("") + "</div>";
+
+  const rt = d.rates;
+  h += "<h2>Bronlar natijasi</h2>" +
+    '<div class="card">' +
+    '<div class="list-row"><span>Bajarilgan</span><b class="up">' + rpct(rt.completion) + "</b></div>" +
+    '<div class="list-row"><span>Bekor qilingan</span><b class="' + (rt.cancelled ? "down" : "flat") + '">' + rpct(rt.cancelled) + "</b></div>" +
+    '<div class="list-row"><span>Kelmagan</span><b class="' + (rt.no_show ? "down" : "flat") + '">' + rpct(rt.no_show) + "</b></div></div>" +
+    '<div class="note">Foizlar faqat vaqti o\'tgan va natijasi ma\'lum bronlardan hisoblanadi' + (rt.eligible ? " (" + rt.eligible + " ta)" : "") + ".</div>";
+  const ins = d.insights;
+  if (ins.best || ins.worst_cancel)
+    h += '<div class="card">' + (ins.best ? '<div class="list-row"><span>Eng band ' + (d.group === "month" ? "oy" : "kun") + "</span><b>" + rlbl(ins.best.k, d.group) + " · " + ins.best.count + " ta</b></div>" : "") +
+      (ins.worst_cancel ? '<div class="list-row"><span>Eng ko\'p bekor</span><b>' + rlbl(ins.worst_cancel.k, d.group) + " · " + ins.worst_cancel.count + " ta</b></div>" : "") + "</div>";
+
   h += "<h2>Ko'p so'ralgan xizmatlar</h2>";
   h += d.by_service.length
-    ? '<div class="card">' + d.by_service.map(s => '<div class="list-row"><span>' + esc(nm(s)) + "</span><b>" + s.count + "</b></div>").join("") + "</div>"
+    ? '<div class="card">' + d.by_service.map(x => '<div class="list-row"><span>' + esc(nm(x)) + "</span><b>" + x.count + "</b></div>").join("") + "</div>"
     : '<div class="empty">Hali bajarilgan vizit yo\'q.</div>';
   return h;
 }
@@ -842,9 +923,14 @@ async function loadSched() {
   render();
 }
 async function loadReport() {
-  S.report.data = null; render();
-  try { S.report.data = await api("/api/admin/report?period=" + S.report.period + "&branch_id=" + S.report.branch + "&barber_id=" + S.report.barber); }
-  catch (e) { S.report.data = {revenue: 0, counts: {booked: 0, done: 0, no_show: 0, cancelled: 0}, by_service: []}; toast(errText(e), true); }
+  const R = S.report; R.data = null; render();
+  const r = reportRange();
+  if (!r.start || !r.end) { R.data = {error: "Boshlanish va tugash sanasini tanlang."}; return render(); }
+  if (r.start > r.end) { R.data = {error: "Boshlanish sanasi tugash sanasidan keyin bo'lishi mumkin emas."}; return render(); }
+  try {
+    R.data = await api("/api/admin/analytics?start=" + r.start + "&end=" + r.end + (r.ps ? "&prev_start=" + r.ps + "&prev_end=" + r.pe : "") +
+      "&branch_id=" + R.branch + "&barber_id=" + R.barber);
+  } catch (e) { R.data = {error: errText(e)}; }
   render();
 }
 async function refreshBranches() {
@@ -955,7 +1041,16 @@ const H = {
     try { await api("/api/admin/bookings/" + d.id + "/status", {method: "POST", body: {status: d.s}}); haptic("success"); loadSched(); }
     catch (e) { toast(errText(e), true); }
   },
-  period: d => { S.report.period = d.p; loadReport(); },
+  period: d => {
+    const R = S.report; R.period = d.p;
+    if (d.p === "custom") { R.from = R.from || ymd(-6); R.to = R.to || ymd(0); }
+    loadReport();
+  },
+  "report-range": () => {
+    const f = document.getElementById("r-from"), t = document.getElementById("r-to");
+    S.report.from = f ? f.value : S.report.from; S.report.to = t ? t.value : S.report.to;
+    loadReport();
+  },
   "hours-branch": d => { S.set.hoursBranch = Number(d.id); loadHours(); },
   "close-modal": () => { S.modal = null; render(); },
   "use-geo": () => {
