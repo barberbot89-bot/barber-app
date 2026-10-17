@@ -182,7 +182,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -650,10 +650,15 @@ function viewSettings() {
       const br = (S.adminBranches || []).find(x => x.id === b.branch_id);
       const sv = T.services.filter(x => x.barber_id === b.id);
       return '<div class="card"><div class="row">' + (b.photo_url ? '<img class="thumb" src="' + esc(imgSrc(b.photo_url)) + '" alt="">' : "") +
-        '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + esc(br ? nm(br) : "") + "</div></div></div>" +
+        '<div style="min-width:0"><b>' + esc(nm(b)) + "</b>" + (b.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + esc(br ? nm(br) : "") + "</div>" +
+        '<div class="muted">' + (b.linked ? "📲 Telegram ulangan ✅" : "📲 Telegram ulanmagan (xabar faqat egasiga boradi)") + "</div></div></div>" +
         '<div class="btns"><button class="small-btn" data-a="edit-barber" data-id="' + b.id + '">O\'zgartirish</button>' +
         '<button class="small-btn" data-a="toggle-barber" data-id="' + b.id + '">' + (b.active ? "Yashirish" : "Ko'rsatish") + "</button>" +
-        '<button class="small-btn" data-a="off-days" data-id="' + b.id + '">Dam olish kunlari</button></div>' +
+        '<button class="small-btn" data-a="off-days" data-id="' + b.id + '">Dam olish kunlari</button>' +
+        '<button class="small-btn" data-a="link-barber" data-id="' + b.id + '">' + (b.linked ? "Qayta ulash" : "Telegramga ulash") + "</button>" +
+        (b.linked ? '<button class="small-btn no" data-a="unlink-barber" data-id="' + b.id + '">Uzish</button>' : "") + "</div>" +
+        (T.binv && T.binv.id === b.id ? '<div class="linkbox-wrap"><div class="muted">Havolani ustaga yuboring. U bir marta ishlaydi.</div><div class="linkbox">' + esc(T.binv.link) + "</div>" +
+          '<div class="btns"><button class="small-btn" data-a="copy-binv">Nusxalash</button><button class="small-btn" data-a="share-binv">Telegram orqali yuborish</button></div></div>' : "") +
         sv.map(x => '<div class="list-row"><span>' + esc(nm(x)) + (x.active ? "" : ' <span class="tag">Yashirin</span>') + '<div class="muted">' + x.duration_min + " daqiqa · " + Number(x.price).toLocaleString("ru-RU") + sumUz + "</div></span>" +
           '<span class="btns" style="margin:0"><button class="small-btn" data-a="edit-service" data-id="' + x.id + '">O\'zgartirish</button>' +
           '<button class="small-btn" data-a="toggle-service" data-id="' + x.id + '">' + (x.active ? "Yashirish" : "Ko'rsatish") + "</button></span></div>").join("") +
@@ -975,6 +980,24 @@ const H = {
       if (m.pending) await api("/api/admin/barbers/" + br.id + "/photo", {method: "PUT", body: {data: m.pending}});
       S.modal = null; toast("Saqlandi"); refreshPublic(); loadSettings();
     } catch (e) { toast(errText(e), true); }
+  },
+  "link-barber": async d => {
+    try { const r = await api("/api/admin/barbers/" + Number(d.id) + "/invite", {method: "POST"}); S.set.binv = {id: Number(d.id), link: r.link}; render(); }
+    catch (e) { toast(errText(e), true); }
+  },
+  "copy-binv": async () => {
+    try { await navigator.clipboard.writeText(S.set.binv.link); toast("Nusxalandi"); }
+    catch (e) { toast("Havolani belgilab nusxalang", true); }
+  },
+  "share-binv": () => {
+    const url = "https://t.me/share/url?url=" + encodeURIComponent(S.set.binv.link) + "&text=" + encodeURIComponent("Usta sifatida ulanish uchun havola");
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank");
+  },
+  "unlink-barber": async d => {
+    if (!(await ask("Ustaning Telegramini uzamizmi? Unga xabar kelmaydi."))) return;
+    const b = S.adminBarbers.find(x => x.id === Number(d.id));
+    try { await api("/api/admin/barbers/" + b.id + "/telegram", {method: "DELETE"}); b.linked = false; toast("Uzildi"); render(); }
+    catch (e) { toast(errText(e), true); }
   },
   "toggle-barber": async d => {
     const b = S.adminBarbers.find(x => x.id === Number(d.id));
