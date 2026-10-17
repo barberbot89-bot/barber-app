@@ -182,7 +182,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -266,8 +266,8 @@ const S = {
   theme: store("theme") || (tg && tg.colorScheme) || "light",
   view: "home", step: 1, branch: null, barber: null, picked: [], off: null, cal: null, hourOpen: null, slotInfo: null, phone: "", date: "", slots: null, slot: null, slotReq: 0, done: null,
   mineScope: "active", mine: {active: null, history: null},
-  sched: {date: "", branch: 0, list: null},
-  report: {period: "day", branch: 0, data: null},
+  sched: {date: "", branch: 0, barber: 0, list: null},
+  report: {period: "day", branch: 0, barber: 0, data: null},
   set: {services: null, hours: null, hoursBranch: 0, admins: null, invite: null},
   modal: null,
 };
@@ -442,6 +442,15 @@ function dateStrip(selected, from, to, action) {
   return h + "</div>";
 }
 
+function barberPills(sel, action, branchId) {
+  if (!isFull()) return "";
+  const list = (S.adminBarbers || []).filter(b => !branchId || b.branch_id === branchId);
+  if (list.length < 2) return "";
+  let h = '<div class="pills"><button class="pill' + (sel === 0 ? " on" : "") + '" data-a="' + action + '" data-id="0">Barcha ustalar</button>';
+  list.forEach(b => { h += '<button class="pill' + (sel === b.id ? " on" : "") + '" data-a="' + action + '" data-id="' + b.id + '">' + esc(nm(b)) + "</button>"; });
+  return h + "</div>";
+}
+
 function branchPills(sel, action, withAll) {
   const list = S.adminBranches || [];
   if (list.length < 2) return "";
@@ -581,7 +590,7 @@ function viewMine() {
 // ---------- views: staff (uz)
 function viewSched() {
   const L = S.sched.list;
-  let h = "<h1>Jadval</h1>" + branchPills(S.sched.branch, "sched-branch", true) + dateStrip(S.sched.date, -2, 11, "sched-date");
+  let h = "<h1>Jadval</h1>" + branchPills(S.sched.branch, "sched-branch", true) + barberPills(S.sched.barber, "sched-barber", S.sched.branch) + dateStrip(S.sched.date, -2, 11, "sched-date");
   if (L === null) return h + loading();
   if (!L.length) return h + '<div class="empty">Bu kunda yozilish yo\'q.</div>';
   const multi = (S.adminBranches || []).length > 1;
@@ -602,7 +611,7 @@ function viewSched() {
 function viewReport() {
   const R = S.report, d = R.data;
   const sum = " so'm";
-  let h = "<h1>Hisobot</h1>" + branchPills(R.branch, "report-branch", true) +
+  let h = "<h1>Hisobot</h1>" + branchPills(R.branch, "report-branch", true) + barberPills(R.barber, "report-barber", R.branch) +
     '<div class="seg"><button class="' + (R.period === "day" ? "on" : "") + '" data-a="period" data-p="day">Bugun</button>' +
     '<button class="' + (R.period === "month" ? "on" : "") + '" data-a="period" data-p="month">Shu oy</button></div>';
   if (!d) return h + loading();
@@ -829,12 +838,12 @@ async function loadMine(scope) {
 }
 async function loadSched() {
   S.sched.list = null; render();
-  try { S.sched.list = await api("/api/admin/bookings?date_=" + S.sched.date + "&branch_id=" + S.sched.branch); } catch (e) { S.sched.list = []; toast(errText(e), true); }
+  try { S.sched.list = await api("/api/admin/bookings?date_=" + S.sched.date + "&branch_id=" + S.sched.branch + "&barber_id=" + S.sched.barber); } catch (e) { S.sched.list = []; toast(errText(e), true); }
   render();
 }
 async function loadReport() {
   S.report.data = null; render();
-  try { S.report.data = await api("/api/admin/report?period=" + S.report.period + "&branch_id=" + S.report.branch); }
+  try { S.report.data = await api("/api/admin/report?period=" + S.report.period + "&branch_id=" + S.report.branch + "&barber_id=" + S.report.barber); }
   catch (e) { S.report.data = {revenue: 0, counts: {booked: 0, done: 0, no_show: 0, cancelled: 0}, by_service: []}; toast(errText(e), true); }
   render();
 }
@@ -937,8 +946,10 @@ const H = {
 
   // staff
   "sched-date": d => { S.sched.date = d.d; loadSched(); },
-  "sched-branch": d => { S.sched.branch = Number(d.id); loadSched(); },
-  "report-branch": d => { S.report.branch = Number(d.id); loadReport(); },
+  "sched-branch": d => { S.sched.branch = Number(d.id); S.sched.barber = 0; loadSched(); },
+  "sched-barber": d => { S.sched.barber = Number(d.id); loadSched(); },
+  "report-branch": d => { S.report.branch = Number(d.id); S.report.barber = 0; loadReport(); },
+  "report-barber": d => { S.report.barber = Number(d.id); loadReport(); },
   "set-status": async d => {
     if (d.s === "cancelled" && !(await ask("Yozilishni bekor qilamizmi? Mijozga xabar boradi."))) return;
     try { await api("/api/admin/bookings/" + d.id + "/status", {method: "POST", body: {status: d.s}}); haptic("success"); loadSched(); }
@@ -1153,6 +1164,7 @@ async function boot() {
     S.me = b.me; S.shop = b.shop; S.branches = b.branches; S.services = b.services; S.barbers = b.barbers || [];
     S.lang = b.me.lang || S.lang; store("lang", S.lang);
     if (isStaff()) S.adminBranches = await api("/api/admin/branches");
+    if (isFull()) { try { S.adminBarbers = await api("/api/admin/barbers"); } catch (e2) { S.adminBarbers = []; } }
   } catch (e) {
     clearTimeout(slow);
     screen(t("failed"), errText(e), true);
