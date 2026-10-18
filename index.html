@@ -169,7 +169,29 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 .thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;background:var(--grey-bg);flex:0 0 auto}
 .row{display:flex;gap:12px;align-items:flex-start}
 
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* animatsiyalar: faqat transform/opacity, "backwards" -- tugagach oddiy holatga qaytadi (bosish effekti ishlashi uchun) */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes slideUp{from{transform:translateY(36px)}}
+@keyframes toastIn{from{opacity:0;transform:translateY(-14px)}}
+@keyframes grow{from{transform:scaleY(0)}}
+@keyframes shimmer{to{background-position:-200% 0}}
+#app.enter>*:not(.bar):not(.nav):not(.act):not(.sheet){animation:rise .3s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:var(--d,0s)}
+#app.enter>:nth-child(4){--d:.035s}#app.enter>:nth-child(5){--d:.07s}#app.enter>:nth-child(6){--d:.105s}
+#app.enter>:nth-child(7){--d:.14s}#app.enter>:nth-child(8){--d:.175s}#app.enter>:nth-child(9){--d:.21s}
+#app.enter>:nth-child(10){--d:.245s}#app.enter>:nth-child(n+11){--d:.28s}
+[data-a]{transition:transform .12s ease}
+[data-a]:active:not(:disabled){transform:scale(.96)}
+.sheet.in{animation:fadeIn .18s ease backwards}
+.sheet.in>div{animation:slideUp .26s cubic-bezier(.2,.8,.2,1) backwards}
+.toast{animation:toastIn .22s ease}
+.toast.out{opacity:0;transform:translateY(-10px);transition:opacity .2s,transform .2s}
+.skel{display:grid;gap:10px;padding:4px 0}
+.skel i{display:block;height:64px;border-radius:14px;background:linear-gradient(90deg,var(--card) 25%,var(--line) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.3s linear infinite}
+.skel i:first-child{height:84px}
+.gb{transform-box:fill-box;transform-origin:50% 100%}
+#app.enter .gb{animation:grow .55s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(min(var(--i)*14ms,.6s) + .15s)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px;text-align:center}.cal small{color:var(--muted);padding:6px 0}
 .cd{height:42px;border-radius:10px;text-align:center;font-weight:600}.cd.dis{opacity:.3}.cd.on{background:var(--ink);color:var(--on-ink)}
 .bgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.bgrid .bcard{margin:0}.bgrid .bbody{display:block;padding:12px}.bgrid b{font-family:'Barlow Condensed',sans-serif;font-size:24px;display:block}
@@ -189,7 +211,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -315,7 +337,7 @@ const shortDate = s => { const p = parts(s); return p.d + " " + MONTHS[S.lang][p
 const fmtTime = iso => new Date(iso).toLocaleTimeString("en-GB", {timeZone: TZ, hour: "2-digit", minute: "2-digit"});
 const dateOfIso = iso => ymdOf(new Date(iso));
 const money = n => Number(n).toLocaleString("ru-RU") + " " + t("sum");
-const loading = () => '<div class="empty">' + t("loading") + "…</div>";
+const loading = () => '<div class="skel" role="status" aria-label="' + t("loading") + '"><i></i><i></i><i></i></div>';
 const hasGeo = o => o && o.lat != null && o.lng != null;
 const imgSrc = u => (u ? API_BASE + u : "");
 
@@ -327,7 +349,23 @@ function toast(msg, err) {
   el.className = "toast" + (err ? " err" : "");
   el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2800);
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 220); }, 2600);
+}
+function tap() { try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred("light"); } catch (e) {} }
+function countUp() {
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  $app.querySelectorAll("[data-count]").forEach(el => {
+    const to = Number(el.dataset.count), sum = el.dataset.fmt === "sum", t0 = performance.now(), dur = 700;
+    const fmt = n => sum ? Number(n).toLocaleString("ru-RU") + " so'm" : String(n);
+    el.textContent = fmt(0);
+    const step = now => {
+      if (!el.isConnected) return;
+      const p = Math.min(1, (now - t0) / dur);
+      el.textContent = fmt(p < 1 ? Math.round(to * (1 - Math.pow(1 - p, 3))) : to);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
 }
 function haptic(kind) { try { tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
 function ask(msg) {
@@ -638,7 +676,7 @@ function revChart(series, group) {
   series.forEach((x, i) => {
     const h = x.revenue ? Math.max(2, Math.round(x.revenue / max * H)) : 0;
     bars += '<rect x="' + (i * (bw + gap)).toFixed(1) + '" y="' + (H - h) + '" width="' + bw.toFixed(1) + '" height="' + h +
-      '" rx="2" fill="var(--blue)"><title>' + rlbl(x.k, group) + ": " + rsum(x.revenue) + "</title></rect>";
+      '" rx="2" class="gb" style="--i:' + i + '" fill="var(--blue)"><title>' + rlbl(x.k, group) + ": " + rsum(x.revenue) + "</title></rect>";
   });
   return '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" preserveAspectRatio="none" style="display:block;height:110px">' + bars + "</svg>" +
     '<div class="axis"><span>' + rlbl(series[0].k, group) + "</span><span>" + rlbl(series[n - 1].k, group) + "</span></div>";
@@ -659,7 +697,7 @@ function viewReport() {
   const c = d.compare, cls = c.diff > 0 ? "up" : c.diff < 0 ? "down" : "flat";
   const sign = c.diff > 0 ? "+" : c.diff < 0 ? "−" : "";
   h += '<div class="card"><div class="muted">Tushum · ' + dmy(d.range.start) + (d.range.days > 1 ? " – " + dmy(d.range.end) : "") + '</div>' +
-    '<div class="big">' + rsum(d.revenue) + "</div>" +
+    '<div class="big" data-count="' + d.revenue + '" data-fmt="sum">' + rsum(d.revenue) + "</div>" +
     '<div style="margin-top:6px">O\'rtacha chek: <b>' + (d.avg_check === null ? "—" : rsum(d.avg_check)) + "</b></div></div>";
 
   h += '<div class="card"><div class="muted">Oldingi davr bilan (' + dmy(c.prev_start) + (c.prev_start !== c.prev_end ? " – " + dmy(c.prev_end) : "") + ")</div>" +
@@ -673,18 +711,18 @@ function viewReport() {
   h += '<div class="card"><div class="muted" style="margin-bottom:8px">Tushum dinamikasi' + (d.group === "month" ? " (oylar bo'yicha)" : "") + "</div>" + revChart(d.series, d.group) + "</div>";
 
   h += '<div class="grid2">' +
-    '<div class="card"><b>' + d.counts.done + '</b><span class="muted">Bajarildi</span></div>' +
-    '<div class="card"><b>' + d.upcoming + '</b><span class="muted">Kutilmoqda</span></div>' +
-    '<div class="card"><b>' + d.counts.no_show + '</b><span class="muted">Kelmadi</span></div>' +
-    '<div class="card"><b>' + d.counts.cancelled + '</b><span class="muted">Bekor qilingan</span></div></div>' +
+    '<div class="card"><b data-count="' + d.counts.done + '">' + d.counts.done + '</b><span class="muted">Bajarildi</span></div>' +
+    '<div class="card"><b data-count="' + d.upcoming + '">' + d.upcoming + '</b><span class="muted">Kutilmoqda</span></div>' +
+    '<div class="card"><b data-count="' + d.counts.no_show + '">' + d.counts.no_show + '</b><span class="muted">Kelmadi</span></div>' +
+    '<div class="card"><b data-count="' + d.counts.cancelled + '">' + d.counts.cancelled + '</b><span class="muted">Bekor qilingan</span></div></div>' +
     '<div class="note">Kutilmoqda — hali bo\'lmagan bronlar. Ular tushumga kirmaydi.</div>';
 
   const cu = d.customers;
   h += "<h2>Mijozlar</h2>" +
     '<div class="grid2">' +
-    '<div class="card"><b>' + cu.unique + '</b><span class="muted">Kelgan mijozlar</span></div>' +
-    '<div class="card"><b>' + cu.new + '</b><span class="muted">Yangi</span></div>' +
-    '<div class="card"><b>' + cu.returning + '</b><span class="muted">Qaytgan</span></div>' +
+    '<div class="card"><b data-count="' + cu.unique + '">' + cu.unique + '</b><span class="muted">Kelgan mijozlar</span></div>' +
+    '<div class="card"><b data-count="' + cu.new + '">' + cu.new + '</b><span class="muted">Yangi</span></div>' +
+    '<div class="card"><b data-count="' + cu.returning + '">' + cu.returning + '</b><span class="muted">Qaytgan</span></div>' +
     '<div class="card"><b>' + rpct(cu.returning_rate) + '</b><span class="muted">Qaytganlar ulushi</span></div></div>' +
     '<div class="note">Yangi — do\'konda birinchi bajarilgan vizit shu davrda. Qaytgan — oldin ham bajarilgan vizit bo\'lgan. Ma\'lumot ilova ishga tushgandan beri hisoblanadi.</div>';
   if (d.top_customers.length)
@@ -874,6 +912,7 @@ function modalHtml() {
 }
 
 // ---------- render
+let lastScreen = "", lastModal = "";
 function render() { render0(); if (S.lang === "ru") ruTree($app); }
 function render0() {
   if (!S.shop) return;
@@ -908,6 +947,9 @@ function render0() {
     '<button class="' + (navActive === x[0] ? "on" : "") + '" data-a="tab" data-t="' + x[0] + '">' + icon(x[2]) + "<span>" + x[1] + "</span></button>").join("") + "</div></nav>" : "";
 
   const scrollX = document.querySelector(".strip") ? document.querySelector(".strip").scrollLeft : 0;
+  const key = v + ":" + (v === "home" ? S.step + (S.done ? "d" : "") : "") + ":" + (body.indexOf('class="skel"') >= 0 ? "L" : "R");
+  const animate = key !== lastScreen; lastScreen = key;
+  $app.classList.toggle("enter", animate);
   $app.innerHTML = '<div class="bar"><i style="width:' + pct + '%"></i></div>' + head + body +
     (act ? '<div class="act' + (staff ? " hn" : "") + '"><div>' + act + "</div></div>" : "") + nav + modalHtml();
   const strip = document.querySelector(".strip");
@@ -915,6 +957,10 @@ function render0() {
     const on = strip.querySelector(".chip.on");
     if (scrollX) strip.scrollLeft = scrollX; else if (on) strip.scrollLeft = Math.max(0, on.offsetLeft - strip.clientWidth / 2 + on.clientWidth / 2);
   }
+  const mk = S.modal ? (S.modal.type || "m") : "";
+  if (mk && mk !== lastModal) { const sh = $app.querySelector(".sheet"); if (sh) sh.classList.add("in"); }
+  lastModal = mk;
+  if (animate && v === "report") countUp();
 }
 
 // ---------- loaders
@@ -1249,6 +1295,7 @@ const H = {
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-a]");
   if (!el || !H[el.dataset.a]) return;
+  if (!el.disabled) tap();
   H[el.dataset.a](el.dataset, el);
 });
 document.addEventListener("keydown", e => {
