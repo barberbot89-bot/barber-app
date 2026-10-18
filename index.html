@@ -90,6 +90,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 .primary:disabled{opacity:.35}
 .ghost{height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:600;text-align:center}
 .small-btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:15px;text-align:center}
+.small-btn:disabled{opacity:.45}
 .small-btn.ok{background:var(--ok-bg);border-color:transparent;color:var(--ok)}
 .small-btn.no{background:var(--red-bg);border-color:transparent;color:var(--red)}
 
@@ -188,7 +189,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -706,6 +707,11 @@ function viewReport() {
   h += d.by_service.length
     ? '<div class="card">' + d.by_service.map(x => '<div class="list-row"><span>' + esc(nm(x)) + "</span><b>" + x.count + "</b></div>").join("") + "</div>"
     : '<div class="empty">Hali bajarilgan vizit yo\'q.</div>';
+  if (isFull())
+    h += "<h2>Yuklab olish</h2>" +
+      '<div class="card"><div class="btns"><button class="small-btn" data-a="export-xlsx">Excel yuklab olish</button>' +
+      '<button class="small-btn" data-a="export-pdf">PDF yuklab olish</button></div>' +
+      '<div class="note" style="margin:8px 0 0">Fayl tanlangan davr, filial va usta bo\'yicha Telegramdagi shu bot chatiga yuboriladi. Aniq sanalar uchun yuqorida "Oraliq"ni tanlang.</div></div>';
   return h;
 }
 
@@ -922,6 +928,22 @@ async function loadSched() {
   try { S.sched.list = await api("/api/admin/bookings?date_=" + S.sched.date + "&branch_id=" + S.sched.branch + "&barber_id=" + S.sched.barber); } catch (e) { S.sched.list = []; toast(errText(e), true); }
   render();
 }
+let exporting = false;
+async function doExport(fmt) {
+  if (exporting) return;
+  const R = S.report, r = reportRange();
+  if (!r.start || !r.end) return toast("Boshlanish va tugash sanasini tanlang.", true);
+  if (r.start > r.end) return toast("Boshlanish sanasi tugash sanasidan keyin bo'lishi mumkin emas.", true);
+  exporting = true;
+  const btns = document.querySelectorAll('[data-a="export-xlsx"],[data-a="export-pdf"]'), old = [];
+  btns.forEach((b, i) => { old[i] = b.textContent; b.disabled = true; b.textContent = "Tayyorlanmoqda…"; });
+  try {
+    await api("/api/admin/export?fmt=" + fmt + "&start=" + r.start + "&end=" + r.end + "&branch_id=" + R.branch + "&barber_id=" + R.barber, {method: "POST"});
+    toast("Fayl Telegramga yuborildi ✅");
+  } catch (e) { toast(errText(e), true); }
+  exporting = false;
+  btns.forEach((b, i) => { b.disabled = false; b.textContent = old[i]; });
+}
 async function loadReport() {
   const R = S.report; R.data = null; render();
   const r = reportRange();
@@ -1046,6 +1068,8 @@ const H = {
     if (d.p === "custom") { R.from = R.from || ymd(-6); R.to = R.to || ymd(0); }
     loadReport();
   },
+  "export-xlsx": () => doExport("xlsx"),
+  "export-pdf": () => doExport("pdf"),
   "report-range": () => {
     const f = document.getElementById("r-from"), t = document.getElementById("r-to");
     S.report.from = f ? f.value : S.report.from; S.report.to = t ? t.value : S.report.to;
