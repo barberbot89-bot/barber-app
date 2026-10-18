@@ -189,7 +189,7 @@ h2{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;marg
 
 <script>
 // ====== SOZLAMA: Render'dagi bot serveringiz manzili (oxirida / belgisisiz) ======
-const API_BASE = "https://barber-app-6ucr.onrender.com";
+const API_BASE = "https://YOUR-SERVICE.onrender.com";
 // ================================================================================
 
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -275,7 +275,7 @@ const S = {
   mineScope: "active", mine: {active: null, history: null},
   sched: {date: "", branch: 0, barber: 0, list: null},
   report: {period: "day", branch: 0, barber: 0, from: "", to: "", data: null},
-  set: {services: null, hours: null, hoursBranch: 0, admins: null, invite: null},
+  set: {services: null, hours: null, hoursBranch: 0, admins: null, invite: null, rep: null},
   modal: null,
 };
 const nm = o => (o && ((S.lang === "ru" && o.name_ru) || o.name)) || "";
@@ -785,6 +785,19 @@ function viewSettings() {
   }
 
   if (isOwner()) {
+    h += "<h2>Avtomatik hisobotlar</h2>";
+    const rp = T.rep;
+    if (!rp) h += loading();
+    else if (rp.unavailable) h += '<div class="empty">Bu sozlama hali tayyor emas. Avval migration2.sql ni ishga tushiring.</div>';
+    else {
+      h += '<div class="card">' + [["weekly", "Haftalik hisobot", "Har dushanba 09:00 (o'tgan hafta)"], ["monthly", "Oylik hisobot", "Har oyning 1-kuni 09:00 (o'tgan oy)"]].map(x =>
+        '<div class="list-row"><span><b>' + x[1] + '</b><div class="muted">' + x[2] + "</div></span>" +
+        '<button class="small-btn' + (rp[x[0]] ? " ok" : "") + '" data-a="toggle-report" data-k="' + x[0] + '">' + (rp[x[0]] ? "Yoqilgan ✅" : "O'chirilgan") + "</button></div>").join("") + "</div>" +
+        '<div class="note">Hisobot Telegramdagi shu bot chatiga yuboriladi.</div>' +
+        (rp.error ? '<div class="note" style="color:var(--red)">Oxirgi yuborishda xato: ' + esc(rp.error) + "</div>" : "");
+    }
+  }
+  if (isOwner()) {
     h += "<h2>Adminlar</h2>";
     if (T.admins === null) h += loading();
     else {
@@ -966,7 +979,7 @@ async function loadHours() {
   render();
 }
 async function loadSettings() {
-  S.set.services = null; S.set.hours = null; if (isOwner()) S.set.admins = null; render();
+  S.set.services = null; S.set.hours = null; if (isOwner()) { S.set.admins = null; S.set.rep = null; } render();
   try {
     const [sv, bs] = await Promise.all([api("/api/admin/services"), api("/api/admin/barbers"), refreshBranches()]);
     S.set.services = sv; S.adminBarbers = bs;
@@ -975,6 +988,7 @@ async function loadSettings() {
       S.set.hours = S.set.hoursBranch ? await api("/api/admin/work-hours?branch_id=" + S.set.hoursBranch) : [];
     } else S.set.hours = [];
     if (isOwner()) S.set.admins = await api("/api/admin/admins");
+    if (isOwner()) { try { S.set.rep = await api("/api/admin/report-settings"); } catch (e2) { S.set.rep = {unavailable: true}; } }
   } catch (e) {
     toast(errText(e), true);
     S.set.services = S.set.services || []; S.adminBarbers = S.adminBarbers || []; S.set.hours = S.set.hours || [];
@@ -1067,6 +1081,15 @@ const H = {
     const R = S.report; R.period = d.p;
     if (d.p === "custom") { R.from = R.from || ymd(-6); R.to = R.to || ymd(0); }
     loadReport();
+  },
+  "toggle-report": async d => {
+    const rp = S.set.rep;
+    if (!rp || rp.unavailable) return;
+    try {
+      S.set.rep = await api("/api/admin/report-settings", {method: "PUT", body: {[d.k]: !rp[d.k]}});
+      toast(S.set.rep[d.k] ? "Yoqildi" : "O'chirildi");
+    } catch (e) { toast(errText(e), true); }
+    render();
   },
   "export-xlsx": () => doExport("xlsx"),
   "export-pdf": () => doExport("pdf"),
